@@ -85,6 +85,9 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  final FocusNode _searchFocus = FocusNode();
+  bool _suppressAutocomplete = false; // chặn listener khi set text thủ công
+
   // --- controller cho ô "Tự nhập (km)" ---
   final TextEditingController _radiusCustomCtl = TextEditingController();
 
@@ -151,6 +154,7 @@ class _MapScreenState extends State<MapScreen> {
     _debounce?.cancel();
     _searchCtl.dispose();
     _radiusCustomCtl.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -208,8 +212,9 @@ class _MapScreenState extends State<MapScreen> {
 
   // ====== Autocomplete ======
   void _onQueryChanged() {
+    if (_suppressAutocomplete || !_searchFocus.hasFocus) return; // <— thêm
     final q = _searchCtl.text.trim();
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
       if (q.isEmpty) {
         setState(() => _suggests = []);
@@ -267,11 +272,18 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _onSelectPrediction(AutocompletePrediction p) async {
     final token = _sessionToken ?? _newSessionToken();
     _sessionToken = null; // chốt phiên
+
+    // --- NGĂN AUTOCOMPLETE TRIGGER LẠI KHI SET TEXT THỦ CÔNG ---
+    _suppressAutocomplete = true;     // cần biến bool này trong state
+    _debounce?.cancel();
+    _searchCtl.removeListener(_onQueryChanged);
+    _searchCtl.text = p.description;  // hiển thị địa điểm đã chọn
+    _searchFocus.unfocus();           // bỏ focus để không gọi lại autocomplete
     setState(() {
-      _searchCtl.text = p.description;
-      _suggests = [];
+      _suggests = [];                 // ẩn danh sách gợi ý ngay lập tức
     });
 
+    // --- GỌI PLACE DETAILS LẤY TỌA ĐỘ ---
     final uri = Uri.https(
       'maps.googleapis.com',
       '/maps/api/place/details/json',
@@ -295,6 +307,7 @@ class _MapScreenState extends State<MapScreen> {
         final error = data['error_message'] ?? status ?? 'UNKNOWN_ERROR';
         throw Exception(error);
       }
+
       final result = data['result'] as Map<String, dynamic>;
       final loc = result['geometry']?['location'];
       if (loc == null) throw Exception('Không có geometry');
@@ -308,19 +321,26 @@ class _MapScreenState extends State<MapScreen> {
       });
 
       final ctrl = await _mapCtrl.future;
-      await ctrl.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: 14.5),
-      ));
+      await ctrl.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: 14.5),
+        ),
+      );
 
-      _fetchAndShow(); // tải top quanh vị trí mới
+      await _fetchAndShow(); // tải top quanh vị trí mới
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Place Details lỗi: $e')),
         );
       }
+    } finally {
+      // --- MỞ LẠI LISTENER SAU KHI XỬ LÝ XONG ---
+      _searchCtl.addListener(_onQueryChanged);
+      _suppressAutocomplete = false;
     }
   }
+
 
   // ====== Nearby + Filter + Scoring ======
   Future<void> _fetchAndShow() async {
@@ -867,6 +887,7 @@ class _MapScreenState extends State<MapScreen> {
                   elevation: 6,
                   borderRadius: BorderRadius.circular(12),
                   child: TextField(
+                    focusNode: _searchFocus,
                     controller: _searchCtl,
                     decoration: InputDecoration(
                       hintText: 'Nhập địa điểm (vd: Tokyo, Japan)',
