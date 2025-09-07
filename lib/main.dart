@@ -85,6 +85,22 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // --- controller cho ô "Tự nhập (km)" ---
+  final TextEditingController _radiusCustomCtl = TextEditingController();
+
+// icon hiển thị cho loại địa điểm
+  final Map<String, IconData> _placeTypeIcons = const {
+    'restaurant': Icons.restaurant,
+    'park': Icons.park_outlined,
+    'museum': Icons.museum_outlined,
+    'cafe': Icons.local_cafe_outlined,
+    'bar': Icons.local_bar_outlined,
+    'shopping_mall': Icons.local_mall_outlined,
+    'zoo': Icons.pets_outlined,
+    'aquarium': Icons.water_outlined,
+    'tourist_attraction': Icons.attractions, // cần Flutter >=3.22; nếu thiếu dùng Icons.place_outlined
+  };
+
   final Completer<GoogleMapController> _mapCtrl = Completer();
   LatLng? _current;
   bool _loading = false;
@@ -134,6 +150,7 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchCtl.dispose();
+    _radiusCustomCtl.dispose();
     super.dispose();
   }
 
@@ -490,153 +507,310 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _openFilterSheet() async {
     await showModalBottomSheet(
       context: context,
-      isScrollControlled: false,
+      isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) {
+      builder: (ctx) {
         double tmpRating = _minRating;
         int tmpReviews = _minReviews;
         int tmpRadius = _radiusKm;
         final tmpTypes = Set<String>.from(_selectedTypes);
 
+        // Preset bán kính
+        final List<int> radiusPresets = [5, 10, 20];
+        int? tmpSelectedPreset =
+        radiusPresets.contains(_radiusKm) ? _radiusKm : null;
+
+        // Nếu đang là custom -> set text
+        _radiusCustomCtl.text =
+        (!radiusPresets.contains(_radiusKm)) ? _radiusKm.toString() : '';
+
+        // --- UI helpers ---
+        Widget pill({
+          required String label,
+          required bool selected,
+          IconData? icon,
+          VoidCallback? onTap,
+          Color? selectedColor,
+          Color? borderColor,
+        }) {
+          final sc = Theme.of(context).colorScheme;
+          final bg = selected ? (selectedColor ?? sc.primaryContainer) : sc.surface;
+          final fg = selected ? sc.onPrimaryContainer : sc.onSurface.withOpacity(0.9);
+          final bd = borderColor ?? sc.outlineVariant;
+
+          return InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: bd),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 18, color: fg),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: fg)),
+                  if (selected && icon == null) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.check_circle, size: 18, color: fg),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
+
+        Widget section({
+          required String title,
+          required Widget child,
+          Widget? trailing,
+        }) {
+          final sc = Theme.of(context).colorScheme;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: sc.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: sc.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    if (trailing != null) trailing,
+                  ],
+                ),
+                const SizedBox(height: 12),
+                child,
+              ],
+            ),
+          );
+        }
+
         return StatefulBuilder(
           builder: (context, setModal) {
-            Widget buildSingleChoiceChips<T>({
-              required String title,
-              required List<T> options,
-              required T selected,
-              required void Function(T v) onSelected,
-              String Function(T v)? label,
-            }) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Header "Bộ lọc" + "Đặt lại"
+            Widget header() {
+              final sc = Theme.of(context).colorScheme;
+              return Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
-                    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: options.map((opt) {
-                      final isSel = opt == selected;
-                      return ChoiceChip(
-                        label: Text(label != null ? label(opt) : opt.toString()),
-                        selected: isSel,
-                        onSelected: (_) => setModal(() => onSelected(opt)),
-                      );
-                    }).toList(),
-                  ),
+                  const Text('Bộ lọc', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _minRating = 4.0;
+                        _minReviews = 1000;
+                        _radiusKm = 10;
+                        _selectedTypes
+                          ..clear()
+                          ..addAll({'tourist_attraction', 'restaurant'});
+                      });
+                      Navigator.pop(context);
+                      _fetchAndShow();
+                    },
+                    child: Text('Đặt lại',
+                        style: TextStyle(color: sc.primary, fontWeight: FontWeight.w700)),
+                  )
                 ],
               );
             }
 
-            Widget buildMultiChoiceChips({
-              required String title,
-              required List<String> options,
-              required Set<String> selectedSet,
-            }) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
-                    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: options.map((opt) {
-                      final isSel = selectedSet.contains(opt);
-                      return FilterChip(
-                        label: Text(opt.replaceAll('_', ' ')),
-                        selected: isSel,
-                        onSelected: (_) => setModal(() {
-                          if (isSel) selectedSet.remove(opt); else selectedSet.add(opt);
-                        }),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              );
-            }
+            // Bán kính
+            Widget radiusSection() {
+              final items = radiusPresets.map((km) {
+                return pill(
+                  label: '<${km}km',
+                  selected: tmpSelectedPreset == km,
+                  icon: Icons.near_me_outlined,
+                  onTap: () => setModal(() {
+                    tmpSelectedPreset = km;
+                    _radiusCustomCtl.clear();
+                    tmpRadius = km;
+                  }),
+                );
+              }).toList();
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: SingleChildScrollView(
+              final sc = Theme.of(context).colorScheme;
+
+              return section(
+                title: 'Bán kính tìm kiếm',
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildSingleChoiceChips<double>(
-                      title: 'Điểm số tối thiểu',
-                      options: _ratingOptions,
-                      selected: tmpRating,
-                      onSelected: (v) => tmpRating = v,
-                      label: (v) => v.toStringAsFixed(1),
-                    ),
-                    buildSingleChoiceChips<int>(
-                      title: 'Số review tối thiểu',
-                      options: _reviewsOptions,
-                      selected: tmpReviews,
-                      onSelected: (v) => tmpReviews = v,
-                      label: (v) => '>$v',
-                    ),
-                    buildSingleChoiceChips<int>(
-                      title: 'Bán kính (km)',
-                      options: _radiusOptions,
-                      selected: tmpRadius,
-                      onSelected: (v) => tmpRadius = v,
-                      label: (v) => '$v km',
-                    ),
-                    buildMultiChoiceChips(
-                      title: 'Loại địa điểm (chọn nhiều)',
-                      options: _placeTypesOptions,
-                      selectedSet: tmpTypes,
-                    ),
-                    const SizedBox(height: 12),
+                    Wrap(spacing: 8, runSpacing: 8, children: items),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Đặt lại mặc định'),
-                            onPressed: () {
-                              setModal(() {
-                                tmpRating = 4.0;
-                                tmpReviews = 1000;
-                                tmpRadius = 10;
-                                tmpTypes
-                                  ..clear()
-                                  ..addAll({'tourist_attraction', 'restaurant'});
-                              });
-                            },
-                          ),
+                        Checkbox(
+                          value: tmpSelectedPreset == null,
+                          onChanged: (v) => setModal(() {
+                            tmpSelectedPreset = v == true ? null : (tmpSelectedPreset ?? 10);
+                          }),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            icon: const Icon(Icons.check),
-                            label: const Text('Áp dụng'),
-                            onPressed: () {
-                              setState(() {
-                                _minRating = tmpRating;
-                                _minReviews = tmpReviews;
-                                _radiusKm = tmpRadius;
-                                _selectedTypes
-                                  ..clear()
-                                  ..addAll(tmpTypes);
-                              });
-                              Navigator.pop(context);
-                              _fetchAndShow(); // tải lại
-                            },
+                        const Text('Tự nhập:'),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 100,
+                          child: TextField(
+                            controller: _radiusCustomCtl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'km',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: sc.outlineVariant),
+                              ),
+                            ),
+                            onChanged: (v) => setModal(() {
+                              tmpSelectedPreset = null;
+                              final n = int.tryParse(v);
+                              if (n != null && n > 0) tmpRadius = n;
+                            }),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
                   ],
+                ),
+              );
+            }
+
+            // Sao
+            Widget ratingSection() {
+              return section(
+                title: 'Số điểm sao',
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _ratingOptions.map((v) {
+                    final sel = tmpRating == v;
+                    return pill(
+                      label: v == 5.0 ? '⭐ 5' : '⭐ ≥ ${v.toStringAsFixed(1)}',
+                      selected: sel,
+                      onTap: () => setModal(() => tmpRating = v),
+                      selectedColor: Colors.amber.shade100,
+                    );
+                  }).toList(),
+                ),
+              );
+            }
+
+            // Reviews
+            Widget reviewsSection() {
+              final options = const [500, 1000, 5000, 10000];
+              return section(
+                title: 'Số lượt đánh giá',
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: options.map((v) {
+                    final sel = tmpReviews == v;
+                    return pill(
+                      label: '≥$v',
+                      selected: sel,
+                      onTap: () => setModal(() => tmpReviews = v),
+                      selectedColor: Colors.green.shade100,
+                    );
+                  }).toList(),
+                ),
+              );
+            }
+
+            // Loại địa điểm
+            Widget typesSection() {
+              final selectedCount = tmpTypes.length;
+              return section(
+                title: 'Loại địa điểm',
+                trailing: Text('$selectedCount đã chọn',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    )),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _placeTypesOptions.map((t) {
+                    final sel = tmpTypes.contains(t);
+                    final icon = _placeTypeIcons[t] ?? Icons.place_outlined;
+                    return pill(
+                      label: t.replaceAll('_', ' '),
+                      selected: sel,
+                      icon: icon,
+                      onTap: () => setModal(() {
+                        if (sel) {
+                          tmpTypes.remove(t);
+                        } else {
+                          tmpTypes.add(t);
+                        }
+                      }),
+                      selectedColor: Colors.orange.shade100,
+                    );
+                  }).toList(),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      header(),
+                      const SizedBox(height: 8),
+                      radiusSection(),
+                      ratingSection(),
+                      reviewsSection(),
+                      typesSection(),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Hủy'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                setState(() {
+                                  _minRating = tmpRating;
+                                  _minReviews = tmpReviews;
+                                  _radiusKm = tmpRadius;
+                                  _selectedTypes
+                                    ..clear()
+                                    ..addAll(tmpTypes);
+                                });
+                                Navigator.pop(context);
+                                _fetchAndShow();
+                              },
+                              child: const Text('Áp dụng bộ lọc'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -645,6 +819,7 @@ class _MapScreenState extends State<MapScreen> {
       },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -815,11 +990,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _fetchAndShow,
-        icon: const Icon(Icons.star),
-        label: const Text('Tìm địa điểm nhiều sao'),
       ),
     );
   }
