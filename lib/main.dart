@@ -107,6 +107,20 @@ class _MapScreenState extends State<MapScreen> {
   final List<int> _reviewsOptions = [1000, 5000, 10000];
   final List<int> _radiusOptions = [10, 20, 30];
 
+  // ====== Place type filter ======
+  final List<String> _placeTypesOptions = [
+    'tourist_attraction',
+    'restaurant',
+    'park',
+    'museum',
+    'cafe',
+    'bar',
+    'shopping_mall',
+    'zoo',
+    'aquarium',
+  ];
+  final Set<String> _selectedTypes = {'tourist_attraction', 'restaurant'};
+
   static const _initSaigon = LatLng(10.776530, 106.700981);
 
   @override
@@ -297,10 +311,13 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _loading = true);
 
     try {
-      // Gọi nhiều loại để đa dạng: tham quan + ăn uống
+      // Lấy theo loại user đã chọn (nếu rỗng -> default 2 loại)
+      final types = _selectedTypes.isNotEmpty
+          ? _selectedTypes.toList()
+          : ['tourist_attraction', 'restaurant'];
+
       final futures = <Future<List<PlaceItem>>>[
-        _nearby(type: 'tourist_attraction', radius: _radiusKm * 1000),
-        _nearby(type: 'restaurant', radius: _radiusKm * 1000),
+        for (final t in types) _nearby(type: t, radius: _radiusKm * 1000),
       ];
       final results = await Future.wait(futures);
 
@@ -342,7 +359,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final top = scored.take(20).toList();
 
-      // Vẽ markers
+      // Vẽ markers + InfoWindow mở chỉ đường
       final newMarkers = <Marker>{};
       for (int i = 0; i < top.length; i++) {
         final sp = top[i];
@@ -469,7 +486,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // ====== UI ======
+  // ====== UI: Filter Sheet ======
   Future<void> _openFilterSheet() async {
     await showModalBottomSheet(
       context: context,
@@ -482,10 +499,11 @@ class _MapScreenState extends State<MapScreen> {
         double tmpRating = _minRating;
         int tmpReviews = _minReviews;
         int tmpRadius = _radiusKm;
+        final tmpTypes = Set<String>.from(_selectedTypes);
 
         return StatefulBuilder(
           builder: (context, setModal) {
-            Widget buildChips<T>({
+            Widget buildSingleChoiceChips<T>({
               required String title,
               required List<T> options,
               required T selected,
@@ -515,68 +533,111 @@ class _MapScreenState extends State<MapScreen> {
               );
             }
 
+            Widget buildMultiChoiceChips({
+              required String title,
+              required List<String> options,
+              required Set<String> selectedSet,
+            }) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: options.map((opt) {
+                      final isSel = selectedSet.contains(opt);
+                      return FilterChip(
+                        label: Text(opt.replaceAll('_', ' ')),
+                        selected: isSel,
+                        onSelected: (_) => setModal(() {
+                          if (isSel) selectedSet.remove(opt); else selectedSet.add(opt);
+                        }),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            }
+
             return Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  buildChips<double>(
-                    title: 'Điểm số tối thiểu',
-                    options: _ratingOptions,
-                    selected: tmpRating,
-                    onSelected: (v) => tmpRating = v,
-                    label: (v) => v.toStringAsFixed(1),
-                  ),
-                  buildChips<int>(
-                    title: 'Số review tối thiểu',
-                    options: _reviewsOptions,
-                    selected: tmpReviews,
-                    onSelected: (v) => tmpReviews = v,
-                    label: (v) => '>${v.toString()}',
-                  ),
-                  buildChips<int>(
-                    title: 'Bán kính (km)',
-                    options: _radiusOptions,
-                    selected: tmpRadius,
-                    onSelected: (v) => tmpRadius = v,
-                    label: (v) => '${v} km',
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Đặt lại mặc định'),
-                          onPressed: () {
-                            setModal(() {
-                              tmpRating = 4.0;
-                              tmpReviews = 1000;
-                              tmpRadius = 10;
-                            });
-                          },
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    buildSingleChoiceChips<double>(
+                      title: 'Điểm số tối thiểu',
+                      options: _ratingOptions,
+                      selected: tmpRating,
+                      onSelected: (v) => tmpRating = v,
+                      label: (v) => v.toStringAsFixed(1),
+                    ),
+                    buildSingleChoiceChips<int>(
+                      title: 'Số review tối thiểu',
+                      options: _reviewsOptions,
+                      selected: tmpReviews,
+                      onSelected: (v) => tmpReviews = v,
+                      label: (v) => '>$v',
+                    ),
+                    buildSingleChoiceChips<int>(
+                      title: 'Bán kính (km)',
+                      options: _radiusOptions,
+                      selected: tmpRadius,
+                      onSelected: (v) => tmpRadius = v,
+                      label: (v) => '$v km',
+                    ),
+                    buildMultiChoiceChips(
+                      title: 'Loại địa điểm (chọn nhiều)',
+                      options: _placeTypesOptions,
+                      selectedSet: tmpTypes,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Đặt lại mặc định'),
+                            onPressed: () {
+                              setModal(() {
+                                tmpRating = 4.0;
+                                tmpReviews = 1000;
+                                tmpRadius = 10;
+                                tmpTypes
+                                  ..clear()
+                                  ..addAll({'tourist_attraction', 'restaurant'});
+                              });
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton.icon(
-                          icon: const Icon(Icons.check),
-                          label: const Text('Áp dụng'),
-                          onPressed: () {
-                            setState(() {
-                              _minRating = tmpRating;
-                              _minReviews = tmpReviews;
-                              _radiusKm = tmpRadius;
-                            });
-                            Navigator.pop(context);
-                            _fetchAndShow(); // tải lại
-                          },
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.check),
+                            label: const Text('Áp dụng'),
+                            onPressed: () {
+                              setState(() {
+                                _minRating = tmpRating;
+                                _minReviews = tmpReviews;
+                                _radiusKm = tmpRadius;
+                                _selectedTypes
+                                  ..clear()
+                                  ..addAll(tmpTypes);
+                              });
+                              Navigator.pop(context);
+                              _fetchAndShow(); // tải lại
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             );
           },
