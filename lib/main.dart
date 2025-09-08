@@ -85,6 +85,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  LatLng? _searchCenter;              // tâm là vị trí user đã chọn
+  Marker? _searchMarker;              // marker đánh dấu vị trí đã chọn
+  Circle? _searchCircle;              // vòng tròn bán kính
+  Set<Circle> _circles = {};          // set circle để đưa vào GoogleMap
   final FocusNode _searchFocus = FocusNode();
   bool _suppressAutocomplete = false; // chặn listener khi set text thủ công
 
@@ -180,35 +184,106 @@ class _MapScreenState extends State<MapScreen> {
 
   // ====== Permissions + Center to user ======
   Future<void> _ensurePermissionAndLocate() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      await Geolocator.openLocationSettings();
+    try {
+      // 1) Bật dịch vụ vị trí nếu đang tắt (mở Settings cho user)
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
+      }
+
+      // 2) Quyền truy cập vị trí
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cần quyền vị trí để định vị bạn.')),
+            );
+          }
+        }
+      }
+
+      // 3) Lấy vị trí hiện tại (fallback last known)
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+
+      final here = (pos != null)
+          ? LatLng(pos.latitude, pos.longitude)
+          : _initSaigon; // fallback
+
+      // 4) Cập nhật state:
+      // - Đặt _current để Nearby dùng tâm này
+      // - Xoá vị trí tìm kiếm (_searchCenter) => xoá marker & vòng tròn
+      if (mounted) {
+        setState(() {
+          _current = here;
+          _searchCenter = null;  // <- clear vị trí đã chọn thủ công
+        });
+      }
+      // Vẽ lại marker/circle theo trạng thái mới (sẽ tự xoá nếu _searchCenter=null)
+      _renderSearchMarkerAndCircle();
+
+      // 5) Di chuyển camera tới vị trí hiện tại
+      final ctrl = await _mapCtrl.future;
+      await ctrl.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: here, zoom: 14.5),
+        ),
+      );
+
+      // 6) Tải lại danh sách địa điểm
+      await _fetchAndShow();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể định vị: $e')),
+        );
+      }
     }
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      permission = await Geolocator.requestPermission();
+  }
+
+  void _renderSearchMarkerAndCircle() {
+    if (_searchCenter == null) {
+      setState(() {
+        _searchMarker = null;
+        _searchCircle = null;
+        _circles = {};
+      });
+      return;
     }
 
-    Position? pos;
-    try {
-      pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-    } catch (_) {
-      pos = await Geolocator.getLastKnownPosition();
-    }
+    final marker = Marker(
+      markerId: const MarkerId('search_target'),
+      position: _searchCenter!,
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      infoWindow: const InfoWindow(title: 'Vị trí đã chọn'),
+    );
+
+    final circle = Circle(
+      circleId: const CircleId('search_radius'),
+      center: _searchCenter!,
+      radius: (_radiusKm * 1000).toDouble(),     // theo filter hiện tại
+      strokeWidth: 2,
+      strokeColor: const Color(0xFF1E88E5).withOpacity(0.7),
+      fillColor: const Color(0xFF1E88E5).withOpacity(0.12),
+    );
 
     setState(() {
-      _current = (pos != null) ? LatLng(pos.latitude, pos.longitude) : _initSaigon;
+      _searchMarker = marker;
+      _searchCircle = circle;
+      _circles = {circle};
     });
-
-    final ctrl = await _mapCtrl.future;
-    await ctrl.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(target: _current!, zoom: 14.5),
-    ));
-
-    _fetchAndShow();
   }
+
 
   // ====== Autocomplete ======
   void _onQueryChanged() {
@@ -317,7 +392,8 @@ class _MapScreenState extends State<MapScreen> {
       final target = LatLng(lat, lng);
 
       setState(() {
-        _current = target;
+        _current = target;        // để lấy nearby
+        _searchCenter = target;   // lưu tâm được chọn để vẽ marker/circle
       });
 
       final ctrl = await _mapCtrl.future;
@@ -326,7 +402,7 @@ class _MapScreenState extends State<MapScreen> {
           CameraPosition(target: target, zoom: 14.5),
         ),
       );
-
+      _renderSearchMarkerAndCircle();
       await _fetchAndShow(); // tải top quanh vị trí mới
     } catch (e) {
       if (mounted) {
@@ -426,7 +502,9 @@ class _MapScreenState extends State<MapScreen> {
         );
         newMarkers.add(marker);
       }
-
+      if (_searchMarker != null) {
+        newMarkers.add(_searchMarker!);
+      }
       setState(() {
         _top = top;
         _markers = newMarkers;
@@ -821,6 +899,7 @@ class _MapScreenState extends State<MapScreen> {
                                     ..clear()
                                     ..addAll(tmpTypes);
                                 });
+                                _renderSearchMarkerAndCircle();
                                 Navigator.pop(context);
                                 _fetchAndShow();
                               },
@@ -873,6 +952,7 @@ class _MapScreenState extends State<MapScreen> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             markers: _markers,
+            circles: _circles,
             onMapCreated: (c) => _mapCtrl.complete(c),
           ),
 
