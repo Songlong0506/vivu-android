@@ -397,6 +397,22 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // Màu marker theo group để phân biệt nhiều category
+  final Map<GmGroup, double> _groupHue = {
+    GmGroup.foodDrink: BitmapDescriptor.hueRed,
+    GmGroup.thingsToDo: BitmapDescriptor.hueAzure,
+    GmGroup.shopping: BitmapDescriptor.hueGreen,
+    GmGroup.services: BitmapDescriptor.hueViolet,
+  };
+
+// Helper: tra group của một category id
+  GmGroup _groupOfCat(String catId) {
+    for (final entry in kGmCategoryGroups.entries) {
+      if (entry.value.any((c) => c.id == catId)) return entry.key;
+    }
+    return GmGroup.foodDrink;
+  }
+
   final Completer<GoogleMapController> _mapCtrl = Completer();
   LatLng? _current;
 
@@ -718,78 +734,86 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _loading = true);
 
     try {
-      // Build danh sách category được chọn
+      // 1) Tập category đã chọn (có thể đến từ nhiều group)
       final selectedCats = <GmCat>[
-        for (final g in kGmCategoryGroups.values)
-          ...g.where((c) => _selectedCatIds.contains(c.id))
+        for (final entry in kGmCategoryGroups.entries)
+          ...entry.value.where((c) => _selectedCatIds.contains(c.id)),
       ];
       final cats = selectedCats.isEmpty
           ? [kGmCategoryGroups[GmGroup.foodDrink]!
           .firstWhere((c) => c.id == 'restaurants')]
           : selectedCats;
 
-      // Gọi Nearby cho từng apiCall (type + keyword)
-      final futures = <Future<List<PlaceItem>>>[];
+      // 2) Chuẩn bị các lời gọi Nearby: giữ kèm catId để gán màu/nhãn
+      final futures = <Future<MapEntry<String, List<PlaceItem>>>>[];
       for (final cat in cats) {
         for (final call in cat.apiCalls) {
-          futures.add(_nearby(
-            type: call['type']!,
-            radius: _radiusKm * 1000,
-            keyword: call['keyword'],
-          ));
+          futures.add(() async {
+            final list = await _nearby(
+              type: call['type']!,
+              radius: _radiusKm * 1000,
+              keyword: call['keyword'],
+            );
+            return MapEntry(cat.id, list);
+          }());
         }
       }
+
+      // 3) Chạy tất cả và gộp theo place_id (union)
       final results = await Future.wait(futures);
 
-      // Gộp unique theo place_id
-      final all = <String, PlaceItem>{};
-      for (final list in results) {
-        for (final p in list) {
-          all[p.placeId] = p;
+      // all[placeId] -> (item, firstCatIdFound)
+      final Map<String, (PlaceItem, String)> all = {};
+      for (final entry in results) {
+        final catId = entry.key;
+        for (final p in entry.value) {
+          all.putIfAbsent(p.placeId, () => (p, catId));
         }
       }
 
-      // Lọc theo filter
+      // 4) Lọc theo rating/reviews/distance
       final origin = _current!;
-      final filtered = all.values.where((p) {
+      final filtered = <(PlaceItem, String)>[];
+      for (final e in all.values) {
+        final p = e.$1;
         final rOk = (p.rating ?? 0.0) >= _minRating;
         final vOk = (p.userRatingsTotal ?? 0) >= _minReviews;
         final dOk = _distanceMeters(origin, p.latLng) <= (_radiusKm * 1000);
-        return rOk && vOk && dOk;
-      }).toList();
+        if (rOk && vOk && dOk) filtered.add(e);
+      }
 
-      // Weighted rating
-      const m = 50.0;
-      const C = 4.2;
-      final scored = filtered.map((p) {
+      // 5) Tính điểm & sort
+      const m = 50.0, C = 4.2;
+      final scored = filtered.map((e) {
+        final p = e.$1;
+        final catId = e.$2;
         final R = p.rating ?? 0.0;
         final v = (p.userRatingsTotal ?? 0).toDouble();
         final weighted = (v / (v + m)) * R + (m / (v + m)) * C;
-        return ScoredPlace(p, weighted);
+        return (ScoredPlace(p, weighted), catId);
       }).toList();
 
-      // sort by score then distance
       scored.sort((a, b) {
-        final c = b.score.compareTo(a.score);
+        final c = b.$1.score.compareTo(a.$1.score);
         if (c != 0) return c;
-        final da = _distanceMeters(origin, a.item.latLng);
-        final db = _distanceMeters(origin, b.item.latLng);
+        final da = _distanceMeters(origin, a.$1.item.latLng);
+        final db = _distanceMeters(origin, b.$1.item.latLng);
         return da.compareTo(db);
       });
 
-      final top = scored.take(20).toList();
+      final top = scored.take(40).toList(); // tăng nhẹ để đa dạng category
 
-      // markers
+      // 6) Vẽ marker: màu theo group của category đầu tiên sinh item
       final newMarkers = <Marker>{};
-      if (_searchMarker != null) {
-        newMarkers.add(_searchMarker!); // marker tâm được chọn
-      }
+      if (_searchMarker != null) newMarkers.add(_searchMarker!);
+
       for (int i = 0; i < top.length; i++) {
-        final sp = top[i];
+        final sp = top[i].$1;
+        final catId = top[i].$2;
         final p = sp.item;
-        final hue = (i == 0)
-            ? BitmapDescriptor.hueOrange
-            : (i < 5 ? BitmapDescriptor.hueRose : BitmapDescriptor.hueRed);
+        final group = _groupOfCat(catId);
+        final hue = _groupHue[group] ?? BitmapDescriptor.hueRed;
+
         final rating = p.rating?.toStringAsFixed(1) ?? '—';
         final reviews = p.userRatingsTotal ?? 0;
         final snippet = [
@@ -799,24 +823,30 @@ class _MapScreenState extends State<MapScreen> {
           '(Nhấn info để chỉ đường)'
         ].join('\n');
 
-        newMarkers.add(
-          Marker(
-            markerId: MarkerId(p.placeId),
-            position: p.latLng,
-            infoWindow: InfoWindow(
-              title: '${i + 1}. ${p.name}',
-              snippet: snippet,
-              onTap: () => _openNavigation(p.latLng, p.name),
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        newMarkers.add(Marker(
+          markerId: MarkerId('${p.placeId}::$catId'),
+          position: p.latLng,
+          infoWindow: InfoWindow(
+            title: p.name,
+            snippet: snippet,
+            onTap: () => _openNavigation(p.latLng, p.name),
           ),
-        );
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        ));
       }
 
       setState(() {
-        _top = top;
+        _top = top.map((e) => e.$1).toList();
         _markers = newMarkers;
       });
+
+      if (mounted) {
+        final catCount = cats.length;
+        final total = top.length;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã áp dụng $catCount category • $total kết quả')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
