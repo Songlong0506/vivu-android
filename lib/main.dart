@@ -397,6 +397,22 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  final Map<String, BitmapDescriptor> _catIcons = {};
+
+  Future<void> _loadCatIcons() async {
+    for (final entry in kGmCategoryGroups.entries) {
+      for (final c in entry.value) {
+        if (!_catIcons.containsKey(c.id)) {
+          final icon = await BitmapDescriptor.fromAssetImage(
+            const ImageConfiguration(size: Size(48, 48)),
+            'assets/icons/${c.id}.png',
+          );
+          _catIcons[c.id] = icon;
+        }
+      }
+    }
+  }
+
   // Màu marker theo group để phân biệt nhiều category
   final Map<GmGroup, double> _groupHue = {
     GmGroup.foodDrink: BitmapDescriptor.hueRed,
@@ -443,7 +459,7 @@ class _MapScreenState extends State<MapScreen> {
 
   // Category state (Google Maps-like)
   GmGroup _activeGroup = GmGroup.foodDrink;
-  final Set<String> _selectedCatIds = {'restaurants'};
+  final Set<String> _selectedCatIds = {}; // default empty
 
   // Marker/circle for picked search center
   LatLng? _searchCenter;
@@ -454,6 +470,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCatIcons();
     _ensurePermissionAndLocate();
     _searchCtl.addListener(_onQueryChanged);
   }
@@ -739,12 +756,15 @@ class _MapScreenState extends State<MapScreen> {
         for (final entry in kGmCategoryGroups.entries)
           ...entry.value.where((c) => _selectedCatIds.contains(c.id)),
       ];
+
+      // Nếu không chọn gì -> coi như chọn tất cả category
       final cats = selectedCats.isEmpty
-          ? [kGmCategoryGroups[GmGroup.foodDrink]!
-          .firstWhere((c) => c.id == 'restaurants')]
+          ? [
+        for (final group in kGmCategoryGroups.values) ...group,
+      ]
           : selectedCats;
 
-      // 2) Chuẩn bị các lời gọi Nearby: giữ kèm catId để gán màu/nhãn
+      // 2) Chuẩn bị các lời gọi Nearby: giữ kèm catId để gán icon/nhãn
       final futures = <Future<MapEntry<String, List<PlaceItem>>>>[];
       for (final cat in cats) {
         for (final call in cat.apiCalls) {
@@ -803,7 +823,9 @@ class _MapScreenState extends State<MapScreen> {
 
       final top = scored.take(40).toList(); // tăng nhẹ để đa dạng category
 
-      // 6) Vẽ marker: màu theo group của category đầu tiên sinh item
+      // 6) Vẽ marker:
+      // - Nếu đã có icon cho category -> dùng icon riêng (giống Google Maps)
+      // - Nếu chưa có -> fallback dùng màu theo group
       final newMarkers = <Marker>{};
       if (_searchMarker != null) newMarkers.add(_searchMarker!);
 
@@ -811,8 +833,14 @@ class _MapScreenState extends State<MapScreen> {
         final sp = top[i].$1;
         final catId = top[i].$2;
         final p = sp.item;
+
+        // icon theo category (nếu có), fallback dùng màu theo group
         final group = _groupOfCat(catId);
         final hue = _groupHue[group] ?? BitmapDescriptor.hueRed;
+        final BitmapDescriptor iconForCat =
+        (_catIcons != null && _catIcons[catId] != null)
+            ? _catIcons[catId]!
+            : BitmapDescriptor.defaultMarkerWithHue(hue);
 
         final rating = p.rating?.toStringAsFixed(1) ?? '—';
         final reviews = p.userRatingsTotal ?? 0;
@@ -831,7 +859,7 @@ class _MapScreenState extends State<MapScreen> {
             snippet: snippet,
             onTap: () => _openNavigation(p.latLng, p.name),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+          icon: iconForCat,
         ));
       }
 
@@ -857,6 +885,7 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
 
   Future<void> _openNavigation(LatLng to, String name) async {
     final google = Uri.parse(
