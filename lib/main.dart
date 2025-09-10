@@ -503,7 +503,7 @@ class _MapScreenState extends State<MapScreen> {
     return R * c;
   }
 
-  void _renderSearchMarkerAndCircle() {
+  void _renderSearchMarkerAndCircle({bool showMarker = true}) {
     if (_searchCenter == null) {
       setState(() {
         _searchMarker = null;
@@ -511,6 +511,7 @@ class _MapScreenState extends State<MapScreen> {
       });
       return;
     }
+
     final circle = Circle(
       circleId: const CircleId('search_radius'),
       center: _searchCenter!,
@@ -519,15 +520,20 @@ class _MapScreenState extends State<MapScreen> {
       strokeColor: const Color(0xFF1E88E5).withOpacity(0.7),
       fillColor: const Color(0xFF1E88E5).withOpacity(0.12),
     );
-    _searchMarker = Marker(
-      markerId: const MarkerId('search_target'),
-      position: _searchCenter!,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      infoWindow: const InfoWindow(title: 'Vị trí đã chọn'),
-    );
+
+    Marker? mk;
+    if (showMarker) {
+      mk = Marker(
+        markerId: const MarkerId('search_target'),
+        position: _searchCenter!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        infoWindow: const InfoWindow(title: 'Vị trí đã chọn'),
+      );
+    }
+
     setState(() {
+      _searchMarker = mk;      // có thể là null nếu showMarker=false
       _circles = {circle};
-      // _searchMarker sẽ được add thêm vào _markers trong _fetchAndShow()
     });
   }
 
@@ -547,22 +553,23 @@ class _MapScreenState extends State<MapScreen> {
       Position? pos;
       try {
         pos = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high);
+          desiredAccuracy: LocationAccuracy.high,
+        );
       } catch (_) {
         pos = await Geolocator.getLastKnownPosition();
       }
 
-      final here = (pos != null)
-          ? LatLng(pos.latitude, pos.longitude)
-          : _initSaigon;
+      final here = (pos != null) ? LatLng(pos.latitude, pos.longitude) : _initSaigon;
 
       if (mounted) {
         setState(() {
           _current = here;
-          _searchCenter = null; // clear marker/circle khi về vị trí tôi
+          _searchCenter = here;   // <- dùng chính current làm tâm
         });
       }
-      _renderSearchMarkerAndCircle();
+
+      // vẽ RADIUS nhưng KHÔNG vẽ marker (để không đè chấm xanh)
+      _renderSearchMarkerAndCircle(showMarker: false);
 
       final ctrl = await _mapCtrl.future;
       await ctrl.animateCamera(
@@ -580,6 +587,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
+
 
   // ============== Autocomplete ==============
   void _onQueryChanged() {
@@ -663,7 +671,7 @@ class _MapScreenState extends State<MapScreen> {
         _current = target;
         _searchCenter = target;
       });
-      _renderSearchMarkerAndCircle();
+      _renderSearchMarkerAndCircle(showMarker: true);
 
       final ctrl = await _mapCtrl.future;
       await ctrl.animateCamera(
@@ -821,7 +829,7 @@ class _MapScreenState extends State<MapScreen> {
         return da.compareTo(db);
       });
 
-      final top = scored.take(40).toList(); // tăng nhẹ để đa dạng category
+      final top = scored; // tăng nhẹ để đa dạng category
 
       // 6) Vẽ marker:
       // - Nếu đã có icon cho category -> dùng icon riêng (giống Google Maps)
@@ -1319,7 +1327,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   scrollDirection: Axis.horizontal,
-                  itemCount: math.min(5, _top.length),
+                  itemCount: _top.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     final sp = _top[i];
