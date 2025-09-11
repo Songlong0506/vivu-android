@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+const String _webClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
+  GoogleSignIn get _googleSignIn => GoogleSignIn(clientId: _webClientId.isEmpty ? null : _webClientId);
+
   Future<void> _signIn(BuildContext context) async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
+      final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return;
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
