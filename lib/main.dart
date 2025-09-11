@@ -6,6 +6,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'login_screen.dart';
 
 /// ===============================================================
 /// ===============  CẤU HÌNH API KEYS (QUAN TRỌNG)  ==============
@@ -16,8 +20,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// - Production: cân nhắc gọi qua proxy server để giấu key.
 const String placesWebApiKeyB = 'AIzaSyCsxalL8q8DYpCm3wfyuU_y9yAenj6Mifw';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const TopRatedPlacesApp());
 }
 
@@ -28,7 +33,20 @@ class TopRatedPlacesApp extends StatelessWidget {
     return MaterialApp(
       title: 'Top Rated Places',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const MapScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasData) {
+            return const MapScreen();
+          }
+          return const LoginScreen();
+        },
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -1232,6 +1250,14 @@ class _MapScreenState extends State<MapScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Làm mới',
             onPressed: _fetchAndShow,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Đăng xuất',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              await GoogleSignIn().signOut();
+            },
           ),
         ],
       ),
