@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "746130226651",
+    "project_id": "vivu-89e9c",
+    "storage_bucket": "vivu-89e9c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:746130226651:android:ab9bba00589ee348063bfe",
+        "android_client_info": {
+          "package_name": "com.songlong.vivu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCilIBblVs79c45k7H7mD80eFkkHKrYQfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
