@@ -12,7 +12,20 @@
           "package_name": "com.songlong.vivu"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "746130226651-vdsaa6qmrna6iq2cp8masfttkf5hqe6p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.songlong.vivu",
+            "certificate_hash": "a75214346d326cd71973d040b562922a3fd2d75e"
+          }
+        },
+        {
+          "client_id": "746130226651-shn0mumoiu7mgtfhq9lvknl0678kang2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCilIBblVs79c45k7H7mD80eFkkHKrYQfc"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "746130226651-shn0mumoiu7mgtfhq9lvknl0678kang2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
