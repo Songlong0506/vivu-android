@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,6 +16,8 @@ import '../models/gm_category.dart';
 import '../models/place_item.dart';
 import '../models/scored_place.dart';
 
+const String _webClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
   @override
@@ -25,6 +26,28 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final Map<String, BitmapDescriptor> _catIcons = {};
+
+  GoogleSignIn get _googleSignIn =>
+      GoogleSignIn(clientId: _webClientId.isEmpty ? null : _webClientId);
+
+  Future<void> _signIn() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+    }
+  }
 
   Future<void> _loadCatIcons() async {
     for (final entry in kGmCategoryGroups.entries) {
@@ -1248,12 +1271,7 @@ class _MapScreenState extends State<MapScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-          ).then((_) => setState(() {}));
-        },
+        onTap: _signIn,
         child: const CircleAvatar(
           child: Icon(Icons.person_outline),
         ),
@@ -1265,7 +1283,7 @@ class _MapScreenState extends State<MapScreen> {
       onSelected: (value) async {
         if (value == 'logout') {
           await FirebaseAuth.instance.signOut();
-          await GoogleSignIn().signOut();
+          await _googleSignIn.signOut();
           setState(() {});
         }
       },
