@@ -933,11 +933,6 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Top Rated Places'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.my_location),
-            tooltip: 'Về vị trí của tôi',
-            onPressed: _ensurePermissionAndLocate,
-          ),
-          IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Bộ lọc',
             onPressed: _openFilterSheet,
@@ -1100,6 +1095,22 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
             ),
+
+          Positioned(
+            right: 16,
+            bottom: _top.isNotEmpty ? 140 : 16,
+            child: RawMaterialButton(
+              onPressed: _ensurePermissionAndLocate,
+              elevation: 4.0,
+              fillColor: Colors.white,
+              shape: const CircleBorder(),
+              constraints: const BoxConstraints.tightFor(
+                width: 48,
+                height: 48,
+              ),
+              child: const Icon(Icons.my_location, color: Colors.black87),
+            ),
+          ),
         ],
       ),
     );
