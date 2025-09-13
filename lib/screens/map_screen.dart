@@ -434,7 +434,7 @@ class _MapScreenState extends State<MapScreen> {
         .toList();
   }
 
-  Future<void> _fetchAndShow({bool notify = false}) async {
+  Future<void> _fetchAndShow() async {
     if (_current == null) return;
     setState(() => _loading = true);
 
@@ -543,7 +543,7 @@ class _MapScreenState extends State<MapScreen> {
         _markers = newMarkers;
       });
 
-      if (notify && mounted) {
+      if (mounted) {
         final catCount = cats.length;
         final total = top.length;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -977,7 +977,7 @@ class _MapScreenState extends State<MapScreen> {
                               });
                               _renderSearchMarkerAndCircle();
                               Navigator.pop(context);
-                              _fetchAndShow(notify: true);
+                              _fetchAndShow();
                             },
                             child: const Text('Đặt lại'),
                           ),
@@ -1011,7 +1011,7 @@ class _MapScreenState extends State<MapScreen> {
                                 });
                                 _renderSearchMarkerAndCircle();
                                 Navigator.pop(context);
-                                _fetchAndShow(notify: true);
+                                _fetchAndShow();
                               },
                               child: const Text('Áp dụng bộ lọc'),
                             ),
