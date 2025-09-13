@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -1025,25 +1026,6 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final cameraTarget = _current ?? _initSaigon;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Top Rated Places'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Bộ lọc',
-            onPressed: _openFilterSheet,
-          ),
-          
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Đăng xuất',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              await GoogleSignIn().signOut();
-            },
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           GoogleMap(
@@ -1068,36 +1050,44 @@ class _MapScreenState extends State<MapScreen> {
             right: 12,
             child: Column(
               children: [
-                Material(
-                  elevation: 6,
-                  borderRadius: BorderRadius.circular(12),
-                  child: TextField(
-                    focusNode: _searchFocus,
-                    controller: _searchCtl,
-                    decoration: InputDecoration(
-                      hintText: 'Nhập địa điểm (vd: Tokyo, Japan)',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchCtl.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchCtl.clear();
-                                setState(() => _suggests = []);
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Material(
+                        elevation: 6,
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
+                        child: TextField(
+                          focusNode: _searchFocus,
+                          controller: _searchCtl,
+                          decoration: InputDecoration(
+                            hintText: 'Nhập địa điểm (vd: Tokyo, Japan)',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _searchCtl.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchCtl.clear();
+                                      setState(() => _suggests = []);
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    _buildAccountButton(),
+                  ],
                 ),
                 if (_suggests.isNotEmpty || _searching)
                   Container(
@@ -1227,6 +1217,21 @@ class _MapScreenState extends State<MapScreen> {
 
           Positioned(
             right: 16,
+            bottom: (_top.isNotEmpty ? 140 : 16) + 64,
+            child: RawMaterialButton(
+              onPressed: _openFilterSheet,
+              elevation: 4.0,
+              fillColor: Colors.white,
+              shape: const CircleBorder(),
+              constraints: const BoxConstraints.tightFor(
+                width: 48,
+                height: 48,
+              ),
+              child: const Icon(Icons.filter_list, color: Colors.black87),
+            ),
+          ),
+          Positioned(
+            right: 16,
             bottom: _top.isNotEmpty ? 140 : 16,
             child: RawMaterialButton(
               onPressed: _ensurePermissionAndLocate,
@@ -1241,6 +1246,39 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAccountButton() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return IconButton(
+        icon: const Icon(Icons.login),
+        tooltip: 'Đăng nhập',
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          ).then((_) => setState(() {}));
+        },
+      );
+    }
+    return PopupMenuButton<String>(
+      onSelected: (value) async {
+        if (value == 'logout') {
+          await FirebaseAuth.instance.signOut();
+          await GoogleSignIn().signOut();
+          setState(() {});
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+      ],
+      child: CircleAvatar(
+        backgroundImage:
+            user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+        child: user.photoURL == null ? const Icon(Icons.person) : null,
       ),
     );
   }
