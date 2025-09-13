@@ -937,11 +937,7 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Bộ lọc',
             onPressed: _openFilterSheet,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Làm mới',
-            onPressed: _fetchAndShow,
-          ),
+          
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
@@ -1099,10 +1095,16 @@ class _MapScreenState extends State<MapScreen> {
           Positioned(
             right: 16,
             bottom: _top.isNotEmpty ? 140 : 16,
-            child: FloatingActionButton(
-              mini: true,
+            child: RawMaterialButton(
               onPressed: _ensurePermissionAndLocate,
-              child: const Icon(Icons.my_location),
+              elevation: 4.0,
+              fillColor: Colors.white,
+              shape: const CircleBorder(),
+              constraints: const BoxConstraints.tightFor(
+                width: 48,
+                height: 48,
+              ),
+              child: const Icon(Icons.my_location, color: Colors.black87),
             ),
           ),
         ],
