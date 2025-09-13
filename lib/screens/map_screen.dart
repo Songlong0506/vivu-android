@@ -1070,7 +1070,14 @@ class _MapScreenState extends State<MapScreen> {
                                 setState(() => _suggests = []);
                               },
                             ),
-                          _buildAccountButton(),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              right: 4,
+                              top: 4,
+                              bottom: 4,
+                            ),
+                            child: _buildAccountButton(),
+                          ),
                         ],
                       ),
                       suffixIconConstraints:
