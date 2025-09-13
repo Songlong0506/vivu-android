@@ -1244,15 +1244,16 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildAccountButton() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return IconButton(
-        icon: const Icon(Icons.login),
-        tooltip: 'Đăng nhập',
-        onPressed: () {
+      return GestureDetector(
+        onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           ).then((_) => setState(() {}));
         },
+        child: const CircleAvatar(
+          child: Icon(Icons.person_outline),
+        ),
       );
     }
     return PopupMenuButton<String>(
