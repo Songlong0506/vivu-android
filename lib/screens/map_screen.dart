@@ -29,7 +29,7 @@ class _MapScreenState extends State<MapScreen> {
     for (final entry in kGmCategoryGroups.entries) {
       for (final c in entry.value) {
         if (!_catIcons.containsKey(c.id)) {
-          final icon = await BitmapDescriptor.fromAssetImage(
+          final icon = await BitmapDescriptor.asset(
             const ImageConfiguration(size: Size(48, 48)),
             'assets/icons/${c.id}.png',
           );
@@ -147,8 +147,8 @@ class _MapScreenState extends State<MapScreen> {
       center: _searchCenter!,
       radius: (_radiusKm * 1000).toDouble(),
       strokeWidth: 2,
-      strokeColor: const Color(0xFF1E88E5).withOpacity(0.7),
-      fillColor: const Color(0xFF1E88E5).withOpacity(0.12),
+      strokeColor: const Color(0xB21E88E5),
+      fillColor: const Color(0x1F1E88E5),
     );
 
     Marker? mk;
@@ -483,9 +483,8 @@ class _MapScreenState extends State<MapScreen> {
         final group = _groupOfCat(catId);
         final hue = _groupHue[group] ?? BitmapDescriptor.hueRed;
         final BitmapDescriptor iconForCat =
-        (_catIcons != null && _catIcons[catId] != null)
-            ? _catIcons[catId]!
-            : BitmapDescriptor.defaultMarkerWithHue(hue);
+            _catIcons[catId] ??
+            BitmapDescriptor.defaultMarkerWithHue(hue);
 
         newMarkers.add(Marker(
           markerId: MarkerId('${p.placeId}::$catId'),
