@@ -732,7 +732,6 @@ class _MapScreenState extends State<MapScreen> {
           required bool selected,
           IconData? icon,
           VoidCallback? onTap,
-          Color? selectedColor,
         }) {
           final sc = Theme.of(context).colorScheme;
           return InkWell(
@@ -741,9 +740,7 @@ class _MapScreenState extends State<MapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: selected
-                    ? (selectedColor ?? sc.primaryContainer)
-                    : sc.surface,
+                color: selected ? sc.primaryContainer : sc.surface,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: sc.outlineVariant),
               ),
@@ -767,16 +764,6 @@ class _MapScreenState extends State<MapScreen> {
                       color: selected ? sc.onPrimaryContainer : sc.onSurface,
                     ),
                   ),
-                  if (selected) ...[
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.check_circle,
-                      size: 18,
-                      color: selected
-                          ? sc.onPrimaryContainer
-                          : sc.onSurfaceVariant,
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -861,7 +848,6 @@ class _MapScreenState extends State<MapScreen> {
                     return pill(
                       label: v == 5.0 ? '⭐ 5' : '⭐ ≥ ${v.toStringAsFixed(1)}',
                       selected: sel,
-                      selectedColor: Colors.amber.shade100,
                       onTap: () => setModal(() => tmpRating = v),
                     );
                   }).toList(),
@@ -880,7 +866,6 @@ class _MapScreenState extends State<MapScreen> {
                     return pill(
                       label: '≥$v',
                       selected: sel,
-                      selectedColor: Colors.green.shade100,
                       onTap: () => setModal(() => tmpReviews = v),
                     );
                   }).toList(),
