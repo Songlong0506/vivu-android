@@ -1045,49 +1045,48 @@ class _MapScreenState extends State<MapScreen> {
 
           // Search box
           Positioned(
-            top: 12,
+            top: MediaQuery.of(context).padding.top + 12,
             left: 12,
             right: 12,
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Material(
-                        elevation: 6,
+                Material(
+                  elevation: 6,
+                  borderRadius: BorderRadius.circular(12),
+                  child: TextField(
+                    focusNode: _searchFocus,
+                    controller: _searchCtl,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập địa điểm (vd: Tokyo, Japan)',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_searchCtl.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchCtl.clear();
+                                setState(() => _suggests = []);
+                              },
+                            ),
+                          _buildAccountButton(),
+                        ],
+                      ),
+                      suffixIconConstraints:
+                          const BoxConstraints(minWidth: 0, minHeight: 0),
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        child: TextField(
-                          focusNode: _searchFocus,
-                          controller: _searchCtl,
-                          decoration: InputDecoration(
-                            hintText: 'Nhập địa điểm (vd: Tokyo, Japan)',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: _searchCtl.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      _searchCtl.clear();
-                                      setState(() => _suggests = []);
-                                    },
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _buildAccountButton(),
-                  ],
+                  ),
                 ),
                 if (_suggests.isNotEmpty || _searching)
                   Container(
