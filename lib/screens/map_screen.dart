@@ -29,7 +29,7 @@ class _MapScreenState extends State<MapScreen> {
     for (final entry in kGmCategoryGroups.entries) {
       for (final c in entry.value) {
         if (!_catIcons.containsKey(c.id)) {
-          final icon = await BitmapDescriptor.asset(
+          final icon = await BitmapDescriptor.fromAssetImage(
             const ImageConfiguration(size: Size(48, 48)),
             'assets/icons/${c.id}.png',
           );
@@ -147,8 +147,8 @@ class _MapScreenState extends State<MapScreen> {
       center: _searchCenter!,
       radius: (_radiusKm * 1000).toDouble(),
       strokeWidth: 2,
-      strokeColor: const Color(0xB21E88E5),
-      fillColor: const Color(0x1F1E88E5),
+      strokeColor: const Color(0xFF1E88E5).withOpacity(0.7),
+      fillColor: const Color(0xFF1E88E5).withOpacity(0.12),
     );
 
     Marker? mk;
@@ -483,8 +483,9 @@ class _MapScreenState extends State<MapScreen> {
         final group = _groupOfCat(catId);
         final hue = _groupHue[group] ?? BitmapDescriptor.hueRed;
         final BitmapDescriptor iconForCat =
-            _catIcons[catId] ??
-            BitmapDescriptor.defaultMarkerWithHue(hue);
+        (_catIcons != null && _catIcons[catId] != null)
+            ? _catIcons[catId]!
+            : BitmapDescriptor.defaultMarkerWithHue(hue);
 
         newMarkers.add(Marker(
           markerId: MarkerId('${p.placeId}::$catId'),
@@ -536,9 +537,10 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _onMarkerTapped(PlaceItem p) async {
     final ctrl = await _mapCtrl.future;
     final screen = await ctrl.getScreenCoordinate(p.latLng);
+    final ratio = MediaQuery.of(context).devicePixelRatio;
     setState(() {
       _selectedPlace = p;
-      _infoWindowOffset = Offset(screen.x.toDouble(), screen.y.toDouble());
+      _infoWindowOffset = Offset(screen.x / ratio, screen.y / ratio);
     });
   }
 
@@ -546,8 +548,9 @@ class _MapScreenState extends State<MapScreen> {
     if (_selectedPlace == null) return;
     final ctrl = await _mapCtrl.future;
     final screen = await ctrl.getScreenCoordinate(_selectedPlace!.latLng);
+    final ratio = MediaQuery.of(context).devicePixelRatio;
     setState(() {
-      _infoWindowOffset = Offset(screen.x.toDouble(), screen.y.toDouble());
+      _infoWindowOffset = Offset(screen.x / ratio, screen.y / ratio);
     });
   }
 
@@ -935,6 +938,11 @@ class _MapScreenState extends State<MapScreen> {
             icon: const Icon(Icons.filter_list),
             tooltip: 'Bộ lọc',
             onPressed: _openFilterSheet,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Làm mới',
+            onPressed: _fetchAndShow,
           ),
           IconButton(
             icon: const Icon(Icons.logout),
