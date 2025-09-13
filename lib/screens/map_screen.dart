@@ -915,11 +915,6 @@ class _MapScreenState extends State<MapScreen> {
             onPressed: _openFilterSheet,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Làm mới',
-            onPressed: _fetchAndShow,
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
             onPressed: () async {
