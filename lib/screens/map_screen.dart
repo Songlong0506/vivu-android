@@ -617,7 +617,10 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
         ),
-        const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+        Transform.translate(
+          offset: const Offset(0, -6),
+          child: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+        ),
       ],
     );
   }
