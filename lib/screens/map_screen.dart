@@ -1218,7 +1218,10 @@ class _MapScreenState extends State<MapScreen> {
                 width: 48,
                 height: 48,
               ),
-              child: const Icon(Icons.filter_list, color: Colors.black87),
+              child: const Icon(
+                Icons.filter_alt_outlined,
+                color: Color(0xFF4285F4),
+              ),
             ),
           ),
           Positioned(
