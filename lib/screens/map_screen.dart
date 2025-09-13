@@ -1256,6 +1256,8 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
     return PopupMenuButton<String>(
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 40),
       onSelected: (value) async {
         if (value == 'logout') {
           await FirebaseAuth.instance.signOut();
