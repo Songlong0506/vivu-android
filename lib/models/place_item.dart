@@ -8,6 +8,7 @@ class PlaceItem {
   final LatLng latLng;
   final String? address;
   final String? types;
+  final String? photoUrl;
 
   PlaceItem({
     required this.placeId,
@@ -17,5 +18,6 @@ class PlaceItem {
     required this.latLng,
     required this.address,
     required this.types,
+    required this.photoUrl,
   });
 }
