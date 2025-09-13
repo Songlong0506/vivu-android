@@ -7,7 +7,8 @@ const String _webClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  GoogleSignIn get _googleSignIn => GoogleSignIn(clientId: _webClientId.isEmpty ? null : _webClientId);
+  GoogleSignIn get _googleSignIn =>
+      GoogleSignIn(clientId: _webClientId.isEmpty ? null : _webClientId);
 
   Future<void> _signIn(BuildContext context) async {
     try {
@@ -20,9 +21,10 @@ class LoginScreen extends StatelessWidget {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e')),
-      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
     }
   }
 
