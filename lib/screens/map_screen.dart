@@ -64,6 +64,10 @@ class _MapScreenState extends State<MapScreen> {
   Set<Circle> _circles = {};
   List<ScoredPlace> _top = [];
 
+  // Info window popup state
+  PlaceItem? _selectedPlace;
+  Offset? _infoWindowOffset;
+
   // Search state
   final TextEditingController _searchCtl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
@@ -483,24 +487,11 @@ class _MapScreenState extends State<MapScreen> {
             ? _catIcons[catId]!
             : BitmapDescriptor.defaultMarkerWithHue(hue);
 
-        final rating = p.rating?.toStringAsFixed(1) ?? '—';
-        final reviews = p.userRatingsTotal ?? 0;
-        final snippet = [
-          '⭐ $rating  |  $reviews reviews',
-          if ((p.types ?? '').isNotEmpty) p.types!,
-          if ((p.address ?? '').isNotEmpty) p.address!,
-          '(Nhấn info để chỉ đường)'
-        ].join('\n');
-
         newMarkers.add(Marker(
           markerId: MarkerId('${p.placeId}::$catId'),
           position: p.latLng,
-          onTap: () => _showPlaceSheet(p),
-          infoWindow: InfoWindow(
-            title: p.name,
-            snippet: snippet,
-            onTap: () => _openNavigation(p.latLng, p.name),
-          ),
+          consumeTapEvents: true,
+          onTap: () => _onMarkerTapped(p),
           icon: iconForCat,
         ));
       }
@@ -527,8 +518,6 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-
   Future<void> _openNavigation(LatLng to, String name) async {
     final google = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${to.latitude},${to.longitude}&travelmode=walking');
@@ -545,55 +534,89 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void _showPlaceSheet(PlaceItem p) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (p.photoUrl != null)
-              Image.network(
-                p.photoUrl!,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(p.name,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Text(
-                      '⭐ ${p.rating?.toStringAsFixed(1) ?? "—"}   ·   ${p.userRatingsTotal ?? 0} reviews'),
-                  if (p.address != null) ...[
-                    const SizedBox(height: 8),
-                    Text(p.address!,
-                        style: const TextStyle(fontSize: 12)),
-                  ],
-                ],
-              ),
-            ),
-            ButtonBar(
-              children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.directions),
-                  label: const Text('Chỉ đường'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _openNavigation(p.latLng, p.name);
-                  },
+  Future<void> _onMarkerTapped(PlaceItem p) async {
+    final ctrl = await _mapCtrl.future;
+    final screen = await ctrl.getScreenCoordinate(p.latLng);
+    setState(() {
+      _selectedPlace = p;
+      _infoWindowOffset = Offset(screen.x.toDouble(), screen.y.toDouble());
+    });
+  }
+
+  Future<void> _updateInfoWindow() async {
+    if (_selectedPlace == null) return;
+    final ctrl = await _mapCtrl.future;
+    final screen = await ctrl.getScreenCoordinate(_selectedPlace!.latLng);
+    setState(() {
+      _infoWindowOffset = Offset(screen.x.toDouble(), screen.y.toDouble());
+    });
+  }
+
+  Widget _buildPlacePopup() {
+    final p = _selectedPlace!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 260,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (p.photoUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(p.photoUrl!, width: 70, height: 70, fit: BoxFit.cover),
                 )
-              ],
-            )
-          ],
-        );
-      },
+              else
+                Container(
+                  width: 70,
+                  height: 70,
+                  color: Colors.grey.shade300,
+                  child: const Icon(Icons.photo, color: Colors.white70),
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const SizedBox(width: 2),
+                        Text(p.rating?.toStringAsFixed(1) ?? '—',
+                            style: const TextStyle(fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Text('(${p.userRatingsTotal ?? 0})',
+                            style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(p.address ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.directions),
+                onPressed: () => _openNavigation(p.latLng, p.name),
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+      ],
     );
   }
 
@@ -934,6 +957,8 @@ class _MapScreenState extends State<MapScreen> {
             markers: _markers,
             circles: _circles,
             onMapCreated: (c) => _mapCtrl.complete(c),
+            onTap: (_) => setState(() => _selectedPlace = null),
+            onCameraMove: (_) => _updateInfoWindow(),
           ),
 
           // Search box
@@ -1007,6 +1032,13 @@ class _MapScreenState extends State<MapScreen> {
               child: IgnorePointer(child: Center(child: CircularProgressIndicator())),
             ),
 
+          if (_selectedPlace != null && _infoWindowOffset != null)
+            Positioned(
+              left: _infoWindowOffset!.dx - 130,
+              top: _infoWindowOffset!.dy - 170,
+              child: _buildPlacePopup(),
+            ),
+
           // Bottom small list top 5
           if (_top.isNotEmpty)
             Positioned(
@@ -1027,7 +1059,7 @@ class _MapScreenState extends State<MapScreen> {
                         await ctrl.animateCamera(
                           CameraUpdate.newLatLngZoom(p.latLng, 16),
                         );
-                        _showPlaceSheet(p);
+                        await _onMarkerTapped(p);
                       },
                       child: Container(
                         width: 240,
