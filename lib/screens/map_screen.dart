@@ -1084,7 +1084,7 @@ class _MapScreenState extends State<MapScreen> {
                               top: 4,
                               bottom: 4,
                             ),
-                            child: _buildAccountButton(),
+                            child: _buildAccountButton(context),
                           ),
                         ],
                       ),
@@ -1267,7 +1267,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildAccountButton() {
+  Widget _buildAccountButton(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return GestureDetector(
@@ -1277,19 +1277,39 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }
-    return PopupMenuButton<String>(
-      position: PopupMenuPosition.under,
-      offset: const Offset(0, 40),
-      onSelected: (value) async {
-        if (value == 'logout') {
-          await FirebaseAuth.instance.signOut();
-          await _googleSignIn.signOut();
-          setState(() {});
-        }
-      },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
-      ],
+
+    final key = GlobalKey();
+
+    Future<void> handleTap() async {
+      final RenderBox button =
+          key.currentContext!.findRenderObject()! as RenderBox;
+      final RenderBox overlay =
+          Overlay.of(context).context.findRenderObject()! as RenderBox;
+      final position = RelativeRect.fromRect(
+        Rect.fromPoints(
+          button.localToGlobal(Offset.zero, ancestor: overlay),
+          button.localToGlobal(button.size.bottomRight(Offset.zero),
+              ancestor: overlay),
+        ),
+        Offset.zero & overlay.size,
+      );
+      final value = await showMenu<String>(
+        context: context,
+        position: position,
+        items: const [
+          PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+        ],
+      );
+      if (value == 'logout') {
+        await FirebaseAuth.instance.signOut();
+        await _googleSignIn.signOut();
+        setState(() {});
+      }
+    }
+
+    return GestureDetector(
+      key: key,
+      onTap: handleTap,
       child: CircleAvatar(
         backgroundImage:
             user.photoURL != null ? NetworkImage(user.photoURL!) : null,
