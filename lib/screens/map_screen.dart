@@ -367,6 +367,12 @@ class _MapScreenState extends State<MapScreen> {
       final vicinity = raw['vicinity'] as String?;
       final types =
       (raw['types'] as List?)?.cast<String>().take(3).join(' · ');
+      final photos = raw['photos'] as List?;
+      final photoRef =
+          (photos != null && photos.isNotEmpty) ? photos.first['photo_reference'] as String? : null;
+      final photoUrl = (photoRef != null)
+          ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=$photoRef&key=$placesWebApiKeyB'
+          : null;
 
       return PlaceItem(
         placeId: pid,
@@ -376,6 +382,7 @@ class _MapScreenState extends State<MapScreen> {
         latLng: LatLng(plat, plng),
         address: vicinity,
         types: types,
+        photoUrl: photoUrl,
       );
     }).where((p) => p.latLng.latitude != 0.0 && p.rating != null).toList();
   }
@@ -488,6 +495,7 @@ class _MapScreenState extends State<MapScreen> {
         newMarkers.add(Marker(
           markerId: MarkerId('${p.placeId}::$catId'),
           position: p.latLng,
+          onTap: () => _showPlaceSheet(p),
           infoWindow: InfoWindow(
             title: p.name,
             snippet: snippet,
@@ -535,6 +543,58 @@ class _MapScreenState extends State<MapScreen> {
           'geo:${to.latitude},${to.longitude}?q=${Uri.encodeComponent(name)}');
       await launchUrl(geo, mode: LaunchMode.externalApplication);
     }
+  }
+
+  void _showPlaceSheet(PlaceItem p) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (p.photoUrl != null)
+              Image.network(
+                p.photoUrl!,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(p.name,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(
+                      '⭐ ${p.rating?.toStringAsFixed(1) ?? "—"}   ·   ${p.userRatingsTotal ?? 0} reviews'),
+                  if (p.address != null) ...[
+                    const SizedBox(height: 8),
+                    Text(p.address!,
+                        style: const TextStyle(fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+            ButtonBar(
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.directions),
+                  label: const Text('Chỉ đường'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _openNavigation(p.latLng, p.name);
+                  },
+                )
+              ],
+            )
+          ],
+        );
+      },
+    );
   }
 
   // =================== FILTER SHEET (UI) ===================
@@ -972,6 +1032,7 @@ class _MapScreenState extends State<MapScreen> {
                         await ctrl.animateCamera(
                           CameraUpdate.newLatLngZoom(p.latLng, 16),
                         );
+                        _showPlaceSheet(p);
                       },
                       child: Container(
                         width: 240,
