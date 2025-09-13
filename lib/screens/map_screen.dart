@@ -614,7 +614,10 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
         ),
-        const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+        Transform.translate(
+          offset: const Offset(0, -6),
+          child: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+        ),
       ],
     );
   }
@@ -1034,7 +1037,7 @@ class _MapScreenState extends State<MapScreen> {
           if (_selectedPlace != null && _infoWindowOffset != null)
             Positioned(
               left: _infoWindowOffset!.dx - 130,
-              top: _infoWindowOffset!.dy - 170,
+              top: _infoWindowOffset!.dy - 120,
               child: _buildPlacePopup(),
             ),
 
