@@ -29,7 +29,7 @@ class _MapScreenState extends State<MapScreen> {
     for (final entry in kGmCategoryGroups.entries) {
       for (final c in entry.value) {
         if (!_catIcons.containsKey(c.id)) {
-          final icon = await BitmapDescriptor.fromAssetImage(
+          final icon = await BitmapDescriptor.asset(
             const ImageConfiguration(size: Size(48, 48)),
             'assets/icons/${c.id}.png',
           );
@@ -47,7 +47,7 @@ class _MapScreenState extends State<MapScreen> {
     GmGroup.services: BitmapDescriptor.hueViolet,
   };
 
-// Helper: tra group của một category id
+  // Helper: tra group của một category id
   GmGroup _groupOfCat(String catId) {
     for (final entry in kGmCategoryGroups.entries) {
       if (entry.value.any((c) => c.id == catId)) return entry.key;
@@ -127,9 +127,10 @@ class _MapScreenState extends State<MapScreen> {
     final dLng = (b.longitude - a.longitude) * (math.pi / 180.0);
     final la1 = a.latitude * (math.pi / 180.0);
     final la2 = b.latitude * (math.pi / 180.0);
-    final h = math.sin(dLat/2)*math.sin(dLat/2) +
-        math.cos(la1)*math.cos(la2) * math.sin(dLng/2)*math.sin(dLng/2);
-    final c = 2 * math.atan2(math.sqrt(h), math.sqrt(1-h));
+    final h =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(la1) * math.cos(la2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h));
     return R * c;
   }
 
@@ -162,7 +163,7 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     setState(() {
-      _searchMarker = mk;      // có thể là null nếu showMarker=false
+      _searchMarker = mk; // có thể là null nếu showMarker=false
       _circles = {circle};
     });
   }
@@ -189,12 +190,14 @@ class _MapScreenState extends State<MapScreen> {
         pos = await Geolocator.getLastKnownPosition();
       }
 
-      final here = (pos != null) ? LatLng(pos.latitude, pos.longitude) : _initSaigon;
+      final here = (pos != null)
+          ? LatLng(pos.latitude, pos.longitude)
+          : _initSaigon;
 
       if (mounted) {
         setState(() {
           _current = here;
-          _searchCenter = here;   // <- dùng chính current làm tâm
+          _searchCenter = here; // <- dùng chính current làm tâm
         });
       }
 
@@ -211,13 +214,12 @@ class _MapScreenState extends State<MapScreen> {
       await _fetchAndShow();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể định vị: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không thể định vị: $e')));
       }
     }
   }
-
 
   // ============== Autocomplete ==============
   void _onQueryChanged() {
@@ -236,19 +238,23 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _fetchAutocomplete(String input, String token) async {
     setState(() => _searching = true);
-    final uri = Uri.https('maps.googleapis.com',
-        '/maps/api/place/autocomplete/json', <String, String>{
-          'input': input,
-          'language': 'vi',
-          'types': 'geocode',
-          'key': placesWebApiKeyB,
-          'sessiontoken': token,
-        });
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/autocomplete/json',
+      <String, String>{
+        'input': input,
+        'language': 'vi',
+        'types': 'geocode',
+        'key': placesWebApiKeyB,
+        'sessiontoken': token,
+      },
+    );
     try {
       final resp = await http.get(uri);
       final data = json.decode(resp.body) as Map<String, dynamic>;
       final preds = AutocompletePrediction.fromJsonList(
-          (data['predictions'] as List?) ?? []);
+        (data['predictions'] as List?) ?? [],
+      );
       setState(() => _suggests = preds);
     } finally {
       if (mounted) setState(() => _searching = false);
@@ -268,14 +274,17 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _suggests = []);
     _searchCtl.addListener(_onQueryChanged);
 
-    final uri = Uri.https('maps.googleapis.com',
-        '/maps/api/place/details/json', <String, String>{
-          'place_id': p.placeId,
-          'fields': 'geometry,name,formatted_address',
-          'language': 'vi',
-          'key': placesWebApiKeyB,
-          'sessiontoken': token,
-        });
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/details/json',
+      <String, String>{
+        'place_id': p.placeId,
+        'fields': 'geometry,name,formatted_address',
+        'language': 'vi',
+        'key': placesWebApiKeyB,
+        'sessiontoken': token,
+      },
+    );
 
     try {
       final resp = await http.get(uri);
@@ -313,9 +322,9 @@ class _MapScreenState extends State<MapScreen> {
       await _fetchAndShow();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Place Details lỗi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Place Details lỗi: $e')));
       }
     } finally {
       _suppressAutocomplete = false;
@@ -343,7 +352,10 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     final uri = Uri.https(
-        'maps.googleapis.com', '/maps/api/place/nearbysearch/json', params);
+      'maps.googleapis.com',
+      '/maps/api/place/nearbysearch/json',
+      params,
+    );
 
     final resp = await http.get(uri);
     if (resp.statusCode != 200) {
@@ -357,38 +369,45 @@ class _MapScreenState extends State<MapScreen> {
     }
     final List results = (data['results'] as List?) ?? [];
 
-    return results.map((raw) {
-      final pid = raw['place_id'] as String? ?? '';
-      final name = raw['name'] as String? ?? 'Unknown';
-      final rating =
-      (raw['rating'] is num) ? (raw['rating'] as num).toDouble() : null;
-      final userTotal = (raw['user_ratings_total'] is num)
-          ? (raw['user_ratings_total'] as num).toInt()
-          : null;
-      final geo = raw['geometry']?['location'];
-      final plat = (geo?['lat'] as num?)?.toDouble() ?? 0.0;
-      final plng = (geo?['lng'] as num?)?.toDouble() ?? 0.0;
-      final vicinity = raw['vicinity'] as String?;
-      final types =
-      (raw['types'] as List?)?.cast<String>().take(3).join(' · ');
-      final photos = raw['photos'] as List?;
-      final photoRef =
-          (photos != null && photos.isNotEmpty) ? photos.first['photo_reference'] as String? : null;
-      final photoUrl = (photoRef != null)
-          ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=$photoRef&key=$placesWebApiKeyB'
-          : null;
+    return results
+        .map((raw) {
+          final pid = raw['place_id'] as String? ?? '';
+          final name = raw['name'] as String? ?? 'Unknown';
+          final rating = (raw['rating'] is num)
+              ? (raw['rating'] as num).toDouble()
+              : null;
+          final userTotal = (raw['user_ratings_total'] is num)
+              ? (raw['user_ratings_total'] as num).toInt()
+              : null;
+          final geo = raw['geometry']?['location'];
+          final plat = (geo?['lat'] as num?)?.toDouble() ?? 0.0;
+          final plng = (geo?['lng'] as num?)?.toDouble() ?? 0.0;
+          final vicinity = raw['vicinity'] as String?;
+          final types = (raw['types'] as List?)
+              ?.cast<String>()
+              .take(3)
+              .join(' · ');
+          final photos = raw['photos'] as List?;
+          final photoRef = (photos != null && photos.isNotEmpty)
+              ? photos.first['photo_reference'] as String?
+              : null;
+          final photoUrl = (photoRef != null)
+              ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=$photoRef&key=$placesWebApiKeyB'
+              : null;
 
-      return PlaceItem(
-        placeId: pid,
-        name: name,
-        rating: rating,
-        userRatingsTotal: userTotal,
-        latLng: LatLng(plat, plng),
-        address: vicinity,
-        types: types,
-        photoUrl: photoUrl,
-      );
-    }).where((p) => p.latLng.latitude != 0.0 && p.rating != null).toList();
+          return PlaceItem(
+            placeId: pid,
+            name: name,
+            rating: rating,
+            userRatingsTotal: userTotal,
+            latLng: LatLng(plat, plng),
+            address: vicinity,
+            types: types,
+            photoUrl: photoUrl,
+          );
+        })
+        .where((p) => p.latLng.latitude != 0.0 && p.rating != null)
+        .toList();
   }
 
   Future<void> _fetchAndShow() async {
@@ -404,9 +423,7 @@ class _MapScreenState extends State<MapScreen> {
 
       // Nếu không chọn gì -> coi như chọn tất cả category
       final cats = selectedCats.isEmpty
-          ? [
-        for (final group in kGmCategoryGroups.values) ...group,
-      ]
+          ? [for (final group in kGmCategoryGroups.values) ...group]
           : selectedCats;
 
       // 2) Chuẩn bị các lời gọi Nearby: giữ kèm catId để gán icon/nhãn
@@ -482,18 +499,19 @@ class _MapScreenState extends State<MapScreen> {
         // icon theo category (nếu có), fallback dùng màu theo group
         final group = _groupOfCat(catId);
         final hue = _groupHue[group] ?? BitmapDescriptor.hueRed;
-        final BitmapDescriptor iconForCat =
-        (_catIcons != null && _catIcons[catId] != null)
+        final BitmapDescriptor iconForCat = (_catIcons[catId] != null)
             ? _catIcons[catId]!
             : BitmapDescriptor.defaultMarkerWithHue(hue);
 
-        newMarkers.add(Marker(
-          markerId: MarkerId('${p.placeId}::$catId'),
-          position: p.latLng,
-          consumeTapEvents: true,
-          onTap: () => _onMarkerTapped(p),
-          icon: iconForCat,
-        ));
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('${p.placeId}::$catId'),
+            position: p.latLng,
+            consumeTapEvents: true,
+            onTap: () => _onMarkerTapped(p),
+            icon: iconForCat,
+          ),
+        );
       }
 
       setState(() {
@@ -505,31 +523,37 @@ class _MapScreenState extends State<MapScreen> {
         final catCount = cats.length;
         final total = top.length;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã áp dụng $catCount category • $total kết quả')),
+          SnackBar(
+            content: Text('Đã áp dụng $catCount category • $total kết quả'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không tải được địa điểm: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không tải được địa điểm: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
   Future<void> _openNavigation(LatLng to, String name) async {
     final google = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${to.latitude},${to.longitude}&travelmode=walking');
+      'https://www.google.com/maps/dir/?api=1&destination=${to.latitude},${to.longitude}&travelmode=walking',
+    );
     final apple = Uri.parse(
-        'http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=w');
+      'http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=w',
+    );
     if (await canLaunchUrl(google)) {
       await launchUrl(google, mode: LaunchMode.externalApplication);
     } else if (await canLaunchUrl(apple)) {
       await launchUrl(apple, mode: LaunchMode.externalApplication);
     } else {
       final geo = Uri.parse(
-          'geo:${to.latitude},${to.longitude}?q=${Uri.encodeComponent(name)}');
+        'geo:${to.latitude},${to.longitude}?q=${Uri.encodeComponent(name)}',
+      );
       await launchUrl(geo, mode: LaunchMode.externalApplication);
     }
   }
@@ -573,7 +597,12 @@ class _MapScreenState extends State<MapScreen> {
               if (p.photoUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(p.photoUrl!, width: 70, height: 70, fit: BoxFit.cover),
+                  child: Image.network(
+                    p.photoUrl!,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                  ),
                 )
               else
                 Container(
@@ -588,25 +617,38 @@ class _MapScreenState extends State<MapScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(Icons.star, size: 14, color: Colors.amber),
                         const SizedBox(width: 2),
-                        Text(p.rating?.toStringAsFixed(1) ?? '—',
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          p.rating?.toStringAsFixed(1) ?? '—',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                         const SizedBox(width: 4),
-                        Text('(${p.userRatingsTotal ?? 0})',
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          '(${p.userRatingsTotal ?? 0})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(p.address ?? '',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    Text(
+                      p.address ?? '',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -619,7 +661,11 @@ class _MapScreenState extends State<MapScreen> {
         ),
         Transform.translate(
           offset: const Offset(0, -6),
-          child: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 32),
+          child: const Icon(
+            Icons.arrow_drop_down,
+            color: Colors.white,
+            size: 32,
+          ),
         ),
       ],
     );
@@ -641,12 +687,16 @@ class _MapScreenState extends State<MapScreen> {
         final Set<String> tmpSelectedCatIds = Set.of(_selectedCatIds);
         GmGroup tmpActive = _activeGroup;
 
-        int? tmpPreset =
-        _radiusOptions.contains(_radiusKm) ? _radiusKm : null;
-        _radiusCustomCtl.text =
-        (_radiusOptions.contains(_radiusKm)) ? '' : _radiusKm.toString();
+        int? tmpPreset = _radiusOptions.contains(_radiusKm) ? _radiusKm : null;
+        _radiusCustomCtl.text = (_radiusOptions.contains(_radiusKm))
+            ? ''
+            : _radiusKm.toString();
 
-        Widget section({required String title, required Widget child, Widget? trailing}) {
+        Widget section({
+          required String title,
+          required Widget child,
+          Widget? trailing,
+        }) {
           final sc = Theme.of(context).colorScheme;
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -659,11 +709,16 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const Spacer(),
-                  if (trailing != null) trailing,
-                ]),
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    if (trailing != null) trailing,
+                  ],
+                ),
                 const SizedBox(height: 12),
                 child,
               ],
@@ -685,7 +740,9 @@ class _MapScreenState extends State<MapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: selected ? (selectedColor ?? sc.primaryContainer) : sc.surface,
+                color: selected
+                    ? (selectedColor ?? sc.primaryContainer)
+                    : sc.surface,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: sc.outlineVariant),
               ),
@@ -693,16 +750,31 @@ class _MapScreenState extends State<MapScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 18, color: selected ? sc.onPrimaryContainer : sc.onSurfaceVariant),
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: selected
+                          ? sc.onPrimaryContainer
+                          : sc.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 6),
                   ],
-                  Text(label, style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: selected ? sc.onPrimaryContainer : sc.onSurface,
-                  )),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: selected ? sc.onPrimaryContainer : sc.onSurface,
+                    ),
+                  ),
                   if (selected) ...[
                     const SizedBox(width: 6),
-                    Icon(Icons.check_circle, size: 18, color: selected ? sc.onPrimaryContainer : sc.onSurfaceVariant),
+                    Icon(
+                      Icons.check_circle,
+                      size: 18,
+                      color: selected
+                          ? sc.onPrimaryContainer
+                          : sc.onSurfaceVariant,
+                    ),
                   ],
                 ],
               ),
@@ -719,7 +791,8 @@ class _MapScreenState extends State<MapScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: 8, runSpacing: 8,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: _radiusOptions.map((km) {
                         return pill(
                           label: '<${km}km',
@@ -739,7 +812,9 @@ class _MapScreenState extends State<MapScreen> {
                         Checkbox(
                           value: tmpPreset == null,
                           onChanged: (v) => setModal(() {
-                            tmpPreset = v == true ? null : (tmpPreset ?? _radiusOptions.first);
+                            tmpPreset = v == true
+                                ? null
+                                : (tmpPreset ?? _radiusOptions.first);
                           }),
                         ),
                         const Text('Tự nhập:'),
@@ -752,13 +827,18 @@ class _MapScreenState extends State<MapScreen> {
                             decoration: const InputDecoration(
                               hintText: 'km',
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
                               border: OutlineInputBorder(),
                             ),
                             onChanged: (v) => setModal(() {
                               tmpPreset = null;
                               final n = int.tryParse(v);
-                              if (n != null && n > 0) tmpRadius = n;
+                              if (n != null && n > 0) {
+                                tmpRadius = n;
+                              }
                             }),
                           ),
                         ),
@@ -773,7 +853,8 @@ class _MapScreenState extends State<MapScreen> {
               return section(
                 title: 'Số điểm sao',
                 child: Wrap(
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: _ratingOptions.map((v) {
                     final sel = tmpRating == v;
                     return pill(
@@ -791,7 +872,8 @@ class _MapScreenState extends State<MapScreen> {
               return section(
                 title: 'Số lượt đánh giá',
                 child: Wrap(
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: _reviewsOptions.map((v) {
                     final sel = tmpReviews == v;
                     return pill(
@@ -819,14 +901,19 @@ class _MapScreenState extends State<MapScreen> {
                   initialIndex: tmpActive.index,
                   child: Column(
                     children: [
-                      TabBar(isScrollable: true, tabs: tabs, onTap: (i) {
-                        setModal(() => tmpActive = GmGroup.values[i]);
-                      }),
+                      TabBar(
+                        isScrollable: true,
+                        tabs: tabs,
+                        onTap: (i) {
+                          setModal(() => tmpActive = GmGroup.values[i]);
+                        },
+                      ),
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Wrap(
-                          spacing: 8, runSpacing: 8,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: kGmCategoryGroups[tmpActive]!.map((c) {
                             final sel = tmpSelectedCatIds.contains(c.id);
                             return pill(
@@ -834,8 +921,11 @@ class _MapScreenState extends State<MapScreen> {
                               icon: c.icon,
                               selected: sel,
                               onTap: () => setModal(() {
-                                if (sel) tmpSelectedCatIds.remove(c.id);
-                                else tmpSelectedCatIds.add(c.id);
+                                if (sel) {
+                                  tmpSelectedCatIds.remove(c.id);
+                                } else {
+                                  tmpSelectedCatIds.add(c.id);
+                                }
                               }),
                             );
                           }).toList(),
@@ -857,7 +947,13 @@ class _MapScreenState extends State<MapScreen> {
                       // Header
                       Row(
                         children: [
-                          const Text('Bộ lọc', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                          const Text(
+                            'Bộ lọc',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           const Spacer(),
                           TextButton(
                             onPressed: () {
@@ -951,7 +1047,10 @@ class _MapScreenState extends State<MapScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: CameraPosition(target: cameraTarget, zoom: 13),
+            initialCameraPosition: CameraPosition(
+              target: cameraTarget,
+              zoom: 13,
+            ),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
@@ -964,7 +1063,9 @@ class _MapScreenState extends State<MapScreen> {
 
           // Search box
           Positioned(
-            top: 12, left: 12, right: 12,
+            top: 12,
+            left: 12,
+            right: 12,
             child: Column(
               children: [
                 Material(
@@ -978,12 +1079,12 @@ class _MapScreenState extends State<MapScreen> {
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchCtl.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchCtl.clear();
-                          setState(() => _suggests = []);
-                        },
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchCtl.clear();
+                                setState(() => _suggests = []);
+                              },
+                            )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -991,7 +1092,10 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -1001,28 +1105,38 @@ class _MapScreenState extends State<MapScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)],
+                      boxShadow: const [
+                        BoxShadow(blurRadius: 8, color: Colors.black12),
+                      ],
                     ),
                     constraints: const BoxConstraints(maxHeight: 260),
                     child: _searching
                         ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator()]),
-                    )
+                            padding: EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [CircularProgressIndicator()],
+                            ),
+                          )
                         : ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _suggests.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final s = _suggests[i];
-                        return ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.place_outlined),
-                          title: Text(s.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          onTap: () => _onSelectPrediction(s),
-                        );
-                      },
-                    ),
+                            shrinkWrap: true,
+                            itemCount: _suggests.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, i) {
+                              final s = _suggests[i];
+                              return ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.place_outlined),
+                                title: Text(
+                                  s.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => _onSelectPrediction(s),
+                              );
+                            },
+                          ),
                   ),
               ],
             ),
@@ -1030,7 +1144,9 @@ class _MapScreenState extends State<MapScreen> {
 
           if (_loading)
             const Positioned.fill(
-              child: IgnorePointer(child: Center(child: CircularProgressIndicator())),
+              child: IgnorePointer(
+                child: Center(child: CircularProgressIndicator()),
+              ),
             ),
 
           if (_selectedPlace != null && _infoWindowOffset != null)
@@ -1043,7 +1159,9 @@ class _MapScreenState extends State<MapScreen> {
           // Bottom small list top 5
           if (_top.isNotEmpty)
             Positioned(
-              left: 0, right: 0, bottom: 12,
+              left: 0,
+              right: 0,
+              bottom: 12,
               child: SizedBox(
                 height: 120,
                 child: ListView.separated(
@@ -1068,21 +1186,36 @@ class _MapScreenState extends State<MapScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)],
+                          boxShadow: const [
+                            BoxShadow(blurRadius: 8, color: Colors.black12),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${i + 1}. ${p.name}',
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text(
+                              '${i + 1}. ${p.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 6),
-                            Text('⭐ ${p.rating?.toStringAsFixed(1) ?? "—"}   ·   ${p.userRatingsTotal ?? 0} reviews',
-                                style: const TextStyle(fontSize: 12)),
+                            Text(
+                              '⭐ ${p.rating?.toStringAsFixed(1) ?? "—"}   ·   ${p.userRatingsTotal ?? 0} reviews',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             const Spacer(),
-                            Text(p.address ?? '',
-                                maxLines: 2, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            Text(
+                              p.address ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
                           ],
                         ),
                       ),
