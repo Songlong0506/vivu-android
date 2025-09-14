@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -45,7 +46,8 @@ class _MapScreenState extends State<MapScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+      ).showSnackBar(
+          SnackBar(content: Text('login_failed'.tr(args: [e.toString()]))));
     }
   }
 
@@ -182,7 +184,7 @@ class _MapScreenState extends State<MapScreen> {
         markerId: const MarkerId('search_target'),
         position: _searchCenter!,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(title: 'Vị trí đã chọn'),
+        infoWindow: InfoWindow(title: 'picked_location'.tr()),
       );
     }
 
@@ -240,7 +242,8 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Không thể định vị: $e')));
+        ).showSnackBar(
+            SnackBar(content: Text('locate_failed'.tr(args: [e.toString()]))));
       }
     }
   }
@@ -323,7 +326,7 @@ class _MapScreenState extends State<MapScreen> {
       }
       final result = data['result'] as Map<String, dynamic>;
       final loc = result['geometry']?['location'];
-      if (loc == null) throw Exception('Không có geometry');
+      if (loc == null) throw Exception('no_geometry'.tr());
 
       final target = LatLng(
         (loc['lat'] as num).toDouble(),
@@ -348,7 +351,8 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Place Details lỗi: $e')));
+        ).showSnackBar(
+            SnackBar(content: Text('place_details_failed'.tr(args: [e.toString()]))));
       }
     } finally {
       _suppressAutocomplete = false;
@@ -548,7 +552,8 @@ class _MapScreenState extends State<MapScreen> {
         final total = top.length;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã áp dụng $catCount category • $total kết quả'),
+            content: Text('apply_filter_result'
+                .tr(args: [catCount.toString(), total.toString()])),
           ),
         );
       }
@@ -556,7 +561,8 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Không tải được địa điểm: $e')));
+        ).showSnackBar(
+            SnackBar(content: Text('load_places_failed'.tr(args: [e.toString()]))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -797,7 +803,7 @@ class _MapScreenState extends State<MapScreen> {
           builder: (context, setModal) {
             Widget radiusSection() {
               return section(
-                title: 'Bán kính tìm kiếm',
+                title: 'radius_title'.tr(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -828,7 +834,7 @@ class _MapScreenState extends State<MapScreen> {
                                 : (tmpPreset ?? _radiusOptions.first);
                           }),
                         ),
-                        const Text('Tự nhập:'),
+                        Text('custom_input'.tr()),
                         const SizedBox(width: 8),
                         SizedBox(
                           width: 110,
@@ -862,7 +868,7 @@ class _MapScreenState extends State<MapScreen> {
 
             Widget ratingSection() {
               return section(
-                title: 'Số điểm sao',
+                title: 'rating_score_title'.tr(),
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -880,7 +886,7 @@ class _MapScreenState extends State<MapScreen> {
 
             Widget reviewsSection() {
               return section(
-                title: 'Số lượt đánh giá',
+                title: 'reviews_title'.tr(),
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -897,14 +903,14 @@ class _MapScreenState extends State<MapScreen> {
             }
 
             Widget gmCatsSection() {
-              final tabs = const [
-                Tab(text: 'Food & Drink'),
-                Tab(text: 'Things to do'),
-                Tab(text: 'Shopping'),
-                Tab(text: 'Services'),
+              final tabs = [
+                Tab(text: 'gm_food_drink'.tr()),
+                Tab(text: 'gm_things_to_do'.tr()),
+                Tab(text: 'gm_shopping'.tr()),
+                Tab(text: 'gm_services'.tr()),
               ];
               return section(
-                title: 'Categories',
+                title: 'category_title'.tr(),
                 child: DefaultTabController(
                   length: 4,
                   initialIndex: tmpActive.index,
@@ -956,9 +962,9 @@ class _MapScreenState extends State<MapScreen> {
                       // Header
                       Row(
                         children: [
-                          const Text(
-                            'Bộ lọc',
-                            style: TextStyle(
+                          Text(
+                            'filter_header'.tr(),
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
@@ -979,7 +985,7 @@ class _MapScreenState extends State<MapScreen> {
                               Navigator.pop(context);
                               _fetchAndShow();
                             },
-                            child: const Text('Đặt lại'),
+                            child: Text('reset'.tr()),
                           ),
                         ],
                       ),
@@ -993,7 +999,7 @@ class _MapScreenState extends State<MapScreen> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Hủy'),
+                              child: Text('cancel'.tr()),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1013,7 +1019,7 @@ class _MapScreenState extends State<MapScreen> {
                                 Navigator.pop(context);
                                 _fetchAndShow();
                               },
-                              child: const Text('Áp dụng bộ lọc'),
+                              child: Text('apply_filter'.tr()),
                             ),
                           ),
                         ],
@@ -1207,7 +1213,10 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '⭐ ${p.rating?.toStringAsFixed(1) ?? "—"}   ·   ${p.userRatingsTotal ?? 0} reviews',
+                              'rating_reviews'.tr(args: [
+                                p.rating?.toStringAsFixed(1) ?? '—',
+                                '${p.userRatingsTotal ?? 0}'
+                              ]),
                               style: const TextStyle(fontSize: 12),
                             ),
                             const Spacer(),
@@ -1296,14 +1305,40 @@ class _MapScreenState extends State<MapScreen> {
       final value = await showMenu<String>(
         context: context,
         position: position,
-        items: const [
-          PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+        items: [
+          PopupMenuItem(value: 'language', child: Text('language'.tr())),
+          PopupMenuItem(value: 'logout', child: Text('logout'.tr())),
         ],
       );
       if (value == 'logout') {
         await FirebaseAuth.instance.signOut();
         await _googleSignIn.signOut();
         setState(() {});
+      } else if (value == 'language') {
+        final locale = await showDialog<Locale>(
+          context: context,
+          builder: (context) => SimpleDialog(
+            title: Text('language_dialog_title'.tr()),
+            children: [
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, const Locale('vi')),
+                child: Text('vietnamese'.tr()),
+              ),
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, const Locale('en')),
+                child: Text('english'.tr()),
+              ),
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, const Locale('ja')),
+                child: Text('japanese'.tr()),
+              ),
+            ],
+          ),
+        );
+        if (locale != null) {
+          await context.setLocale(locale);
+          setState(() {});
+        }
       }
     }
 
