@@ -16,6 +16,8 @@ import '../models/autocomplete_prediction.dart';
 import '../models/gm_category.dart';
 import '../models/place_item.dart';
 import '../models/scored_place.dart';
+import 'save_to_list_screen.dart';
+import 'your_lists_screen.dart';
 
 const String _webClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
 
@@ -614,70 +616,90 @@ class _MapScreenState extends State<MapScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (p.photoUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    p.photoUrl!,
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              else
-                Container(
-                  width: 70,
-                  height: 70,
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.photo, color: Colors.white70),
-                ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      p.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (p.photoUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        p.photoUrl!,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 70,
+                      height: 70,
+                      color: Colors.grey.shade300,
+                      child: const Icon(Icons.photo, color: Colors.white70),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 2),
                         Text(
-                          p.rating?.toStringAsFixed(1) ?? '—',
-                          style: const TextStyle(fontSize: 12),
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.star, size: 14, color: Colors.amber),
+                            const SizedBox(width: 2),
+                            Text(
+                              p.rating?.toStringAsFixed(1) ?? '—',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${p.userRatingsTotal ?? 0})',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
                         Text(
-                          '(${p.userRatingsTotal ?? 0})',
-                          style: const TextStyle(fontSize: 12),
+                          p.address ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      p.address ?? '',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.directions),
+                    onPressed: () => _openNavigation(p.latLng, p.name),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.directions),
-                onPressed: () => _openNavigation(p.latLng, p.name),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.bookmark_border),
+                  label: const Text('Save'),
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SaveToListScreen(place: p),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -1249,6 +1271,7 @@ class _MapScreenState extends State<MapScreen> {
         context: context,
         position: position,
         items: [
+          const PopupMenuItem(value: 'lists', child: Text('Your lists')),
           PopupMenuItem(value: 'language', child: Text('language'.tr())),
           PopupMenuItem(value: 'logout', child: Text('logout'.tr())),
         ],
@@ -1282,6 +1305,9 @@ class _MapScreenState extends State<MapScreen> {
           await context.setLocale(locale);
           setState(() {});
         }
+      } else if (value == 'lists') {
+        await Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const YourListsScreen()));
       }
     }
 
