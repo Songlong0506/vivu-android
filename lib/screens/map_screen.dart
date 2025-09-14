@@ -171,8 +171,8 @@ class _MapScreenState extends State<MapScreen> {
       center: _searchCenter!,
       radius: (_radiusKm * 1000).toDouble(),
       strokeWidth: 2,
-      strokeColor: const Color(0xFF1E88E5).withOpacity(0.7),
-      fillColor: const Color(0xFF1E88E5).withOpacity(0.12),
+      strokeColor: const Color(0xB31E88E5),
+      fillColor: const Color(0x1F1E88E5),
     );
 
     Marker? mk;
@@ -236,12 +236,11 @@ class _MapScreenState extends State<MapScreen> {
 
       await _fetchAndShow();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-            SnackBar(content: Text('locate_failed'.tr(args: [e.toString()]))));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+          SnackBar(content: Text('locate_failed'.tr(args: [e.toString()]))));
     }
   }
 
@@ -345,12 +344,11 @@ class _MapScreenState extends State<MapScreen> {
 
       await _fetchAndShow();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-            SnackBar(content: Text('place_details_failed'.tr(args: [e.toString()]))));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+          SnackBar(content: Text('place_details_failed'.tr(args: [e.toString()]))));
     } finally {
       _suppressAutocomplete = false;
     }
@@ -544,23 +542,21 @@ class _MapScreenState extends State<MapScreen> {
         _markers = newMarkers;
       });
 
-      if (mounted) {
-        final catCount = cats.length;
-        final total = top.length;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('apply_filter_result'
-                .tr(args: [catCount.toString(), total.toString()])),
-          ),
-        );
-      }
+      if (!mounted) return;
+      final catCount = cats.length;
+      final total = top.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('apply_filter_result'
+              .tr(args: [catCount.toString(), total.toString()])),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-            SnackBar(content: Text('load_places_failed'.tr(args: [e.toString()]))));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+          SnackBar(content: Text('load_places_failed'.tr(args: [e.toString()]))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
