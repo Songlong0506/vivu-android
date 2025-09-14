@@ -4,7 +4,6 @@ import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -108,11 +107,9 @@ class _MapScreenState extends State<MapScreen> {
   double _minRating = 4.0;
   int _minReviews = 1000;
   int _radiusKm = 10;
-  final TextEditingController _radiusCustomCtl = TextEditingController();
-
   final List<double> _ratingOptions = [4.0, 4.5, 5.0];
   final List<int> _reviewsOptions = [500, 1000, 5000, 10000];
-  final List<int> _radiusOptions = [5, 10, 20];
+  final List<int> _radiusOptions = [5, 10, 20, 30];
 
   // Category state (Google Maps-like)
   GmGroup _activeGroup = GmGroup.foodDrink;
@@ -135,7 +132,6 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _radiusCustomCtl.dispose();
     _searchCtl.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -718,11 +714,6 @@ class _MapScreenState extends State<MapScreen> {
         final Set<String> tmpSelectedCatIds = Set.of(_selectedCatIds);
         GmGroup tmpActive = _activeGroup;
 
-        int? tmpPreset = _radiusOptions.contains(_radiusKm) ? _radiusKm : null;
-        _radiusCustomCtl.text = (_radiusOptions.contains(_radiusKm))
-            ? ''
-            : _radiusKm.toString();
-
         Widget section({
           required String title,
           required Widget child,
@@ -805,67 +796,17 @@ class _MapScreenState extends State<MapScreen> {
             Widget radiusSection() {
               return section(
                 title: 'radius_title'.tr(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _radiusOptions.map((km) {
-                        return pill(
-                          label: '<${km}km',
-                          icon: Icons.near_me_outlined,
-                          selected: tmpPreset == km,
-                          onTap: () => setModal(() {
-                            tmpPreset = km;
-                            tmpRadius = km;
-                            _radiusCustomCtl.clear();
-                          }),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: tmpPreset == null,
-                          onChanged: (v) => setModal(() {
-                            tmpPreset = v == true
-                                ? null
-                                : (tmpPreset ?? _radiusOptions.first);
-                          }),
-                        ),
-                        Text('custom_input'.tr()),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 110,
-                          child: TextField(
-                            controller: _radiusCustomCtl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: const InputDecoration(
-                              hintText: 'km',
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) => setModal(() {
-                              tmpPreset = null;
-                              final n = int.tryParse(v);
-                              if (n != null && n > 0) {
-                                tmpRadius = n;
-                              }
-                            }),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _radiusOptions.map((km) {
+                    return pill(
+                      label: '<${km}km',
+                      icon: Icons.near_me_outlined,
+                      selected: tmpRadius == km,
+                      onTap: () => setModal(() => tmpRadius = km),
+                    );
+                  }).toList(),
                 ),
               );
             }
@@ -878,8 +819,11 @@ class _MapScreenState extends State<MapScreen> {
                   runSpacing: 8,
                   children: _ratingOptions.map((v) {
                     final sel = tmpRating == v;
+                    final text = (v % 1 == 0)
+                        ? v.toInt().toString()
+                        : v.toStringAsFixed(1);
                     return pill(
-                      label: v == 5.0 ? '⭐ 5' : '⭐ ≥ ${v.toStringAsFixed(1)}',
+                      label: v == 5.0 ? '$text ⭐' : '≥$text ⭐',
                       selected: sel,
                       onTap: () => setModal(() => tmpRating = v),
                     );
