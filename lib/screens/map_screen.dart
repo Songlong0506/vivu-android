@@ -802,7 +802,6 @@ class _MapScreenState extends State<MapScreen> {
                   children: _radiusOptions.map((km) {
                     return pill(
                       label: '<${km}km',
-                      icon: Icons.near_me_outlined,
                       selected: tmpRadius == km,
                       onTap: () => setModal(() => tmpRadius = km),
                     );
